@@ -604,9 +604,9 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
   }
   // без ящика (или вне Телеграма) кнопки ведут в бота, как раньше
   var DEEP = { more: "more", renew: "renew", paid: "pay", qr: "qr", ru: "ru", ruqr: "ru", days: "", notes: "", slot: "", access: "", ref: "" };
-  function fallback(cmd) {
+  function fallback(cmd, quietly) {
     if (cmd.a === "ref") return;
-    toast("Связи с ботом из окна нет: открываю бота.");
+    if (!quietly) toast("Связи с ботом из окна нет: открываю бота.");
     if (DEEP.hasOwnProperty(cmd.a)) openBot(DEEP[cmd.a]);
     else openBot(cmd.s ? "admu_" + cmd.s : "adm");
   }
@@ -618,6 +618,15 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
     if (on) $("busy-text").textContent = text || "Выполняю…";
   }
 
+  // запрос с потолком по времени: если провайдер режет Cloudflare (бывает без VPN), не ждём минуту, а идём через чат бота
+  var relayDown = false;
+  async function timed(url, init, ms) {
+    var ctl = window.AbortController ? new AbortController() : null, timer = ctl ? setTimeout(function () { ctl.abort(); }, ms) : null;
+    try { return await fetch(url, Object.assign({ cache: "no-store" }, init || {}, ctl ? { signal: ctl.signal } : {})); }
+    catch (e) { throw new Error("нет пути"); }
+    finally { if (timer) clearTimeout(timer); }
+  }
+
   async function talk(cmd, opts) {
     opts = opts || {};
     if (!canTalk()) { fallback(cmd); return null; }
@@ -627,12 +636,13 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       var id = randomHex(16), key = await aesKey(), iv = crypto.getRandomValues(new Uint8Array(12));
       var body = Object.assign({ t: Math.floor(Date.now() / 1000), w: tg().initData }, cmd);
       var sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv, additionalData: enc(id) }, key, enc(JSON.stringify(body)));
-      var sent = await fetch(LINK.R + "/send", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
-        body: JSON.stringify({ x: LINK.X, i: id, v: b64u(iv), c: b64u(new Uint8Array(sealed)) }) });
+      var sent = await timed(LINK.R + "/send", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ x: LINK.X, i: id, v: b64u(iv), c: b64u(new Uint8Array(sealed)) }) }, 8000);
+      relayDown = false;
       if (!sent.ok) throw new Error(sent.status === 429 ? "часто" : "ящик");
       var until = Date.now() + (opts.long ? 150000 : 70000);
       while (Date.now() < until) {
-        var got = await fetch(LINK.R + "/result?i=" + id, { cache: "no-store" });
+        var got = await timed(LINK.R + "/result?i=" + id, {}, 30000);
         if (got.status === 202) continue;
         if (!got.ok) throw new Error("ящик");
         var box = await got.json();
@@ -641,12 +651,19 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       }
       throw new Error("долго");
     } catch (e) {
+      var why = e && e.message;
+      if (why === "нет пути") relayDown = true;
+      if (opts.quiet) return null;
       haptic("error");
-      if (!opts.quiet) toast(e && e.message === "часто" ? "Слишком много нажатий. Подождите минуту." : e && e.message === "долго"
-        ? "Бот долго не отвечает. Попробуйте ещё раз через минуту." : "Нет связи с ботом. Проверьте интернет и попробуйте ещё раз.");
+      if (why === "нет пути") {   // окно не достучалось до ящика: команда уйдёт старым путём, через чат бота
+        toast("Нет прямой связи с ботом (так бывает без VPN). Открываю бота в чате.");
+        fallback(cmd, true);
+      } else toast(why === "часто" ? "Слишком много нажатий. Подождите минуту." : why === "долго"
+        ? "Бот долго не отвечает. Попробуйте ещё раз через минуту." : "Нет связи с ботом. Попробуйте ещё раз через минуту.");
       return null;
     } finally {
-      if (!opts.quiet) busy(false); else $("fresh-state").textContent = "";
+      if (!opts.quiet) busy(false);
+      $("fresh-state").textContent = relayDown ? "нет связи · включите VPN" : "";
     }
   }
 
