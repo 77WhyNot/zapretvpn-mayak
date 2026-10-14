@@ -1033,6 +1033,14 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       var list2 = el("div", "list"); body.appendChild(list2);
       item(list2, "Приглашение в бот", "", function () { talk({ a: "invite", s: slot }); });
       item(list2, "Показать ссылку", "", function () { talk({ a: "link", s: slot }); });
+      if (!p[8]) {
+        var waits = (D.a.e || {})[slot];
+        item(list2, "Привязать по @имени в Телеграме", waits ? "ждём @" + waits : "", function () {
+          textSheet("Кабинет по имени", "Имя в Телеграме", waits ? "@" + waits : "@", { max: 33, placeholder: "@Vasya_123" }, "Привязать", function (v) {
+            return talk({ a: "expect", s: slot, v: v }).then(function (res) { if (res && res.ok !== false) personSheet(slot); return null; });
+          });
+        });
+      }
       if (p[8]) item(list2, "Написать человеку", "", function () { textSheet("Сообщение для «" + p[1] + "»", "Текст", "", { area: true, max: 1500 }, "Отправить", function (v) { return talk({ a: "msg", s: slot, v: v }); }); });
       item(list2, "Переименовать", "", function () { textSheet("Новое имя", "Имя", p[1], { max: 40 }, "Сохранить", function (v) { return talk({ a: "rename", s: slot, v: v }); }); });
       item(list2, "Сайты", "", function () { talk({ a: "sites", s: slot, d: 1 }); });
@@ -1111,7 +1119,7 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
     });
   }
 
-  function saySheet() {
+  function saySheet(prefill) {
     talk({ a: "tpl" }, { busy: "Открываю…" }).then(function (res) {
       if (!res || !res.T) return;
       openSheet("Рассылка", function (body) {
@@ -1121,7 +1129,7 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
         pick(body, res.T.map(function (t) { return [t[0], t[1]]; }), null, function (key) {
           var t = res.T.filter(function (x) { return x[0] === key; })[0]; if (t) text.value = t[2];
         });
-        text = field(body, "Текст", "", { area: true, max: 1500, placeholder: "Или напишите свой" });
+        text = field(body, "Текст", typeof prefill === "string" ? prefill : "", { area: true, max: 1500, placeholder: "Или напишите свой" });
         body.appendChild(btn("Отправить всем", "primary", function () {
           var v = text.value.trim(); if (!v) { toast("Пустой текст."); return; }
           confirmAsk("Отправить всем (" + (res.A || 0) + ")?", v, "Отправить", function () { talk({ a: "say", v: v }, { busy: "Рассылаю…" }).then(function (r) { if (r) closeSheet(); }); });
@@ -1181,7 +1189,13 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       var month = Y.month ? MONTHS_NOM[parseInt(Y.month.slice(5), 10) - 1] : "";
       body.appendChild(el("p", "note", Y.amount + " ₽ в месяц, платить до " + Y.day + " числа, отсрочка " + Y.grace + " дн. "
         + "Собрано за " + month + ": " + Y.got + " из " + Y.want + " ₽."));
-      if (Y.mode === "off") body.appendChild(el("p", "note", "Сейчас выключена: людям ничего не видно и никого не отключает. Галочки можно ставить для себя."));
+      if (Y.mode === "off") {
+        body.appendChild(el("p", "note", "Сейчас выключена: людям ничего не видно и никого не отключает. Галочки можно ставить для себя."));
+        if (Y.start) {
+          body.appendChild(el("p", "note warn", "Включится сама 1 " + MONTHS_GEN[parseInt(Y.start.slice(5), 10) - 1] + "."));
+          body.appendChild(btn("Отменить включение по расписанию", "soft", function () { talk({ a: "pstart", v: "cancel" }); }));
+        } else body.appendChild(btn("Включить оплату", "primary", payStartSheet));
+      }
       if (Y.mode !== "off" && !Y.note) body.appendChild(el("p", "note warn", "Не написано, куда переводить: люди не узнают, кому платить. Заполните поле ниже."));
 
       body.appendChild(el("span", "mono lbl", "Режим"));
@@ -1213,6 +1227,35 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       (Y.p || []).forEach(function (r) { item(list, r[1] + " · " + r[3] + " ₽", PAY_MARKS[r[2]] || r[2], function () { payPerson(r[0]); }); });
       if (!(Y.p || []).length) body.appendChild(el("p", "note", "Людей с выданными ссылками пока нет."));
     }, paySheet);
+  }
+
+  function payStartSheet() {
+    var Y = payData(); if (!Y) return;
+    var month = MONTHS_NOM[parseInt(Y.month.slice(5), 10) - 1];
+    var next = new Date(); next = new Date(next.getFullYear(), next.getMonth() + 1, 1);
+    var nextText = "1 " + MONTHS_GEN[next.getMonth()];
+    var late = owing(Y), marked = (Y.p || []).filter(function (r) { return r[4]; }).length;
+    openSheet("Включить оплату", function (body) {
+      body.appendChild(el("p", "note", "Включатся напоминания: у людей в «Маяке» появится оплата, бот напомнит перед сроком. Никого не отключает."));
+      var list = el("div", "list"); body.appendChild(list);
+      item(list, (Y.note ? "✅ " : "❌ ") + "Куда переводить", Y.note ? "заполнено" : "не заполнено", paySheet);
+      item(list, "Отмечено за " + month, marked + " из " + (Y.p || []).length, paySheet);
+      if (!Y.note) body.appendChild(el("p", "note warn", "Сначала впишите, куда переводить: без этого люди не узнают, кому платить."));
+      body.appendChild(btn("Включить с " + nextText, "primary", function () {
+        if (!Y.note) { toast("Сначала впишите, куда переводить."); return; }
+        talk({ a: "pstart", v: "next" }).then(paySheet);
+      }));
+      body.appendChild(btn("Включить сейчас", "soft", function () {
+        if (!Y.note) { toast("Сначала впишите, куда переводить."); return; }
+        confirmAsk("Включить сейчас?", late.length
+          ? "Не отмечены за " + month + ": " + late.map(function (r) { return r[1]; }).join(", ") + ". Им сразу придёт напоминание об оплате за " + month + "."
+          : "Все за " + month + " отмечены. Напоминания начнутся со следующего срока.", "Включить", function () { talk({ a: "pstart", v: "now" }).then(paySheet); });
+      }));
+      body.appendChild(btn("Написать всем об оплате", "soft", function () {
+        saySheet("💳 С " + nextText + " VPN стоит " + Y.amount + " ₽ в месяц, оплата до " + Y.day + " числа. "
+          + "Куда переводить, написано в «Маяке» на главной в разделе «Оплата». После перевода нажми там «Я оплатил».");
+      }));
+    });
   }
 
   function payPerson(slot) {
