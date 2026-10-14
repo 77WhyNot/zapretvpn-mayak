@@ -210,6 +210,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
 .sheet h2{margin:6px 44px 4px 4px;font-size:25px;line-height:1.15;font-weight:300}
 .sheet .x{all:unset;cursor:pointer;position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:20px}
 .note{margin:6px 4px 4px;color:var(--ink3);font-size:14px;line-height:1.45}
+.note.warn{color:var(--accent-ink);font-weight:500}
 .lbl{display:block;margin:14px 4px 4px;color:var(--muted)}
 .pick{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .pick button{all:unset;cursor:pointer;padding:9px 13px;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink2);box-shadow:inset 0 0 0 1px var(--ringc)}
@@ -493,7 +494,7 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
   "use strict";
   var MONTHS_NOM = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
   var MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-  var QUOTAS = [10, 30, 50, 100, 200], TERMS = [7, 30, 90], AMOUNTS = [100, 150, 200, 300, 500], PAY_DAYS = [1, 5, 10, 15, 20, 25];
+  var QUOTAS = [10, 30, 50, 100, 200], TERMS = [7, 30, 90], AMOUNTS = [100, 150, 200, 250, 300], PAY_DAYS = [1, 5, 10, 15, 20, 25];
   var PAY_MODES = { off: "Выключена", remind: "Напоминания", enforce: "Напоминания и отключение" };
   var $ = function (id) { return document.getElementById(id); };
   var app = $("app");
@@ -1169,26 +1170,68 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
     });
   }
 
+  var PAY_MARKS = { paid: "✅ оплачено", free: "не платит", "new": "новичок", wait: "ждём", grace: "срок прошёл", late: "просрочено" };
+  function payData() { return (D.a && D.a.y) || null; }
+  function owing(Y) { return (Y.p || []).filter(function (r) { return r[2] === "wait" || r[2] === "grace" || r[2] === "late"; }); }
+
   function paySheet() {
-    var Y = D.a && D.a.y;
+    var Y = payData();
     if (!Y) { openSheet("Оплата", function (body) { body.appendChild(el("p", "note", "Оплата появится после обновления скрипта на сервере.")); }); return; }
     openSheet("Оплата (бета)", function (body) {
-      body.appendChild(el("p", "note", Y.amount + " ₽ в месяц, платить до " + Y.day + " числа. Собрано " + Y.got + " из " + Y.want + " ₽."));
+      var month = Y.month ? MONTHS_NOM[parseInt(Y.month.slice(5), 10) - 1] : "";
+      body.appendChild(el("p", "note", Y.amount + " ₽ в месяц, платить до " + Y.day + " числа, отсрочка " + Y.grace + " дн. "
+        + "Собрано за " + month + ": " + Y.got + " из " + Y.want + " ₽."));
+      if (Y.mode === "off") body.appendChild(el("p", "note", "Сейчас выключена: людям ничего не видно и никого не отключает. Галочки можно ставить для себя."));
+      if (Y.mode !== "off" && !Y.note) body.appendChild(el("p", "note warn", "Не написано, куда переводить: люди не узнают, кому платить. Заполните поле ниже."));
+
       body.appendChild(el("span", "mono lbl", "Режим"));
       pick(body, Object.keys(PAY_MODES).map(function (k) { return [k, PAY_MODES[k]]; }), Y.mode, function (v) {
-        if (v === "enforce") confirmAsk("Включить отключение за неуплату?", "Кто не оплатил в срок, у того VPN отключится, пока не отметите оплату.", "Включить", function () { talk({ a: "pmode", v: v }).then(paySheet); });
-        else talk({ a: "pmode", v: v });
+        if (v === "enforce") {
+          var late = owing(Y).map(function (r) { return r[1]; });
+          var past = Y.cut && new Date(Y.cut + "T23:59:59") < new Date();
+          confirmAsk("Включить отключение за неуплату?",
+            (late.length ? "Не оплатили за " + month + ": " + late.join(", ") + ". " : "Все оплатили. ")
+            + (late.length ? (past ? "Срок уже прошёл (" + dayText(Y.cut) + "): VPN у них отключится сразу, " : "После " + dayText(Y.cut) + " VPN у них отключится, ")
+              + "пока не отметите оплату." : "Кто не оплатит в срок, у того VPN отключится, пока не отметите оплату."),
+            "Включить", function () { talk({ a: "pmode", v: v }).then(paySheet); });
+        } else if (v === "remind") {
+          confirmAsk("Включить напоминания?", "У людей в кабинете появится строка об оплате, бот будет напоминать перед сроком. Никого не отключает.",
+            "Включить", function () { talk({ a: "pmode", v: v }).then(paySheet); });
+        } else talk({ a: "pmode", v: v });
       });
       body.appendChild(el("span", "mono lbl", "Сумма в месяц"));
       pick(body, AMOUNTS.map(function (n) { return [n, n + " ₽"]; }), Y.amount, function (v) { talk({ a: "pamount", n: v }); });
       body.appendChild(el("span", "mono lbl", "Платить до"));
       pick(body, PAY_DAYS.map(function (n) { return [n, n + " числа"]; }), Y.day, function (v) { talk({ a: "pday", n: v }); });
-      body.appendChild(el("span", "mono lbl", "Кто оплатил · нажмите, чтобы отметить"));
+      body.appendChild(el("span", "mono lbl", "Отсрочка после срока"));
+      pick(body, [0, 3, 5, 7].map(function (n) { return [n, n ? n + " дн" : "без отсрочки"]; }), Y.grace, function (v) { talk({ a: "pgrace", n: v }); });
+      var note = field(body, "Куда переводить", Y.note || "", { area: true, max: 600, placeholder: "Например: СБП по номеру +7…, банк, получатель" });
+      body.appendChild(btn("Сохранить, куда переводить", "soft", function () { talk({ a: "pnote", v: note.value.trim() }); }));
+
+      body.appendChild(el("span", "mono lbl", "Люди · нажмите на человека"));
       var list = el("div", "list"); body.appendChild(list);
-      var marks = { paid: "✅ оплачено", free: "не платит", "new": "новичок", wait: "ждём", grace: "срок прошёл", late: "просрочено" };
-      (Y.p || []).forEach(function (r) { item(list, r[1] + " · " + r[3] + " ₽", marks[r[2]] || r[2], function () { talk({ a: "pmark", s: r[0] }); }); });
+      (Y.p || []).forEach(function (r) { item(list, r[1] + " · " + r[3] + " ₽", PAY_MARKS[r[2]] || r[2], function () { payPerson(r[0]); }); });
       if (!(Y.p || []).length) body.appendChild(el("p", "note", "Людей с выданными ссылками пока нет."));
     }, paySheet);
+  }
+
+  function payPerson(slot) {
+    var Y = payData(), r = Y && (Y.p || []).filter(function (x) { return x[0] === slot; })[0];
+    if (!r) { paySheet(); return; }
+    openSheet(r[1], function (body) {
+      body.appendChild(el("p", "note", "Сейчас: " + (PAY_MARKS[r[2]] || r[2]) + ". В месяц: " + r[3] + " ₽."));
+      var list = el("div", "list"); body.appendChild(list);
+      if (r[2] !== "free") item(list, r[4] ? "Снять галочку «оплатил»" : "Отметить: оплатил", "", function () { talk({ a: "pmark", s: slot }); });
+      item(list, r[2] === "free" ? "Платит как все" : "Не платит (бесплатно)", "", function () { talk({ a: "pfree", s: slot, on: r[2] === "free" ? 0 : 1 }); });
+      item(list, "Своя сумма", "", function () {
+        textSheet("Сумма для «" + r[1] + "»", "Рублей в месяц (0: как у всех)", "", { number: true, max: 6 }, "Сохранить", function (v) {
+          var n = parseInt(v, 10);
+          if (isNaN(n) || n < 0) { toast("Нужно целое число рублей."); return Promise.resolve(null); }
+          return talk({ a: "pperson", s: slot, n: n }).then(function () { payPerson(slot); return null; });
+        });
+      });
+      body.appendChild(btn("Ко всей оплате", "soft", paySheet));
+    }, function () { payPerson(slot); });
   }
 
   function settingsSheet() {
