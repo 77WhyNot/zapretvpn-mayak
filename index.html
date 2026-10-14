@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex">
+<title>ZapretVPN · Маяк</title>
+<!--
+  Мини-приложение «Маяк» для Телеграм-бота ZapretVPN.
+
+  Это пустой шаблон: в нём нет ничьих данных. Бот открывает его по кнопке и кладёт данные человека
+  (срок, расход, его ключ) в адрес после знака #. Эта часть адреса остаётся в телефоне и на хостинг
+  не уходит, поэтому хостинг не видит ни ключей, ни расхода. Сетевых запросов страница не делает,
+  кроме шрифтов и скрипта Телеграма; оплата, QR-код и профиль для Happ открываются в самом боте.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<!-- шрифты и скрипт Телеграма грузятся сбоку: если они тормозят, окно всё равно открывается сразу -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;1,7..72,300;1,7..72,400&display=swap" media="print" onload="this.media='all'">
+<script async id="tg-js" src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --paper:#FAF9F5;--card:#F0EEE6;--plate:#E3DACC;--ink:#141413;--ink2:#3D3D3A;--ink3:#5E5D59;--muted:#73726C;
+  --accent:#C6613F;--accent-ink:#A84B2A;--clay:#D97757;--olive:#788C5D;--kraft:#D4A27F;--manilla:#EBDBBC;--sky:#6A9BCC;
+  --hair:rgba(20,20,19,.1);--ringc:#B0AEA5;--line:#141413;--sea-op:.32;--rock:#D4A27F;--sail:#FAF9F5;--hull:#D4A27F;--vig:#C9BBA5;
+  color-scheme:light;
+}
+:root.night{
+  --paper:#1A1918;--card:#232220;--plate:#2A2926;--ink:#ECE9E0;--ink2:#D6D3CA;--ink3:#B0AEA5;--muted:#A3A198;
+  --accent:#D97757;--accent-ink:#E08A6C;--clay:#D97757;--olive:#7F9463;--hair:rgba(236,233,224,.12);--ringc:#4A4844;
+  --line:#ECE9E0;--sea-op:.22;--rock:#5B4636;--sail:#3D3C38;--hull:#7A5A44;--vig:#141413;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink)}
+body{font-family:Geist,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+a{color:var(--accent-ink)}
+.app{max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+.serif{font-family:Literata,Georgia,serif}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;font-weight:500;letter-spacing:.12em;text-transform:uppercase}
+.rise{animation:rise 1.1s cubic-bezier(.16,1,.3,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+[hidden]{display:none !important}
+main{flex:1 1 auto;padding-bottom:88px}
+
+/* шапка */
+.top{display:flex;align-items:center;gap:10px;padding:16px 20px 10px}
+.top .name{font-size:19px;letter-spacing:-.01em}
+.top .who{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--ink3);font-size:10.5px;max-width:55%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.top .who i{width:6px;height:6px;border-radius:50%;background:var(--olive);flex:none}
+.app[data-state="paused"] .top .who i,.app[data-state="expired"] .top .who i,.app[data-state="unpaid"] .top .who i{background:var(--muted)}
+.app[data-state="quota"] .top .who i{background:var(--clay)}
+
+/* сцена */
+.scene{position:relative;margin:4px 16px 0;border-radius:24px;background:var(--plate)}
+.scene svg.art{display:block;width:100%;height:auto;border-radius:24px;overflow:hidden}
+.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.6s cubic-bezier(.45,0,.55,1) .3s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.paint{animation:paint 1.3s cubic-bezier(.165,.84,.44,1) .65s both;transform-box:fill-box;transform-origin:50% 60%}
+@keyframes paint{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+.beam{transform-box:view-box;transform-origin:276px 97px;animation:sweep 7s cubic-bezier(.45,0,.55,1) 1.2s infinite alternate both}
+@keyframes sweep{from{transform:rotate(-15deg)}to{transform:rotate(10deg)}}
+.halo{transform-box:view-box;transform-origin:276px 97px;animation:halo 3.2s ease-in-out infinite alternate}
+@keyframes halo{from{opacity:.4;transform:scale(.88)}to{opacity:.85;transform:scale(1.08)}}
+.boat-drift{animation:drift 22s ease-in-out infinite alternate}
+@keyframes drift{from{transform:translateX(0)}to{transform:translateX(28px)}}
+.boat{animation:bob 4.8s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:50% 100%}
+@keyframes bob{from{transform:translateY(-2px) rotate(-1deg)}to{transform:translateY(2px) rotate(1.2deg)}}
+.wave{animation:flow 7s ease-in-out infinite alternate}
+@keyframes flow{from{transform:translateX(-8px)}to{transform:translateX(8px)}}
+.gull{animation:glide 5.6s ease-in-out infinite alternate}
+@keyframes glide{from{transform:translate(0,-3px)}to{transform:translate(5px,3px)}}
+.float{animation:float 6s ease-in-out infinite alternate}
+@keyframes float{from{transform:translateY(-4px)}to{transform:translateY(4px)}}
+.star{animation:twinkle 3.6s ease-in-out infinite alternate}
+@keyframes twinkle{from{opacity:.25}to{opacity:1}}
+.day-only{display:inline}.night-only{display:none}
+:root.night .day-only{display:none}:root.night .night-only{display:inline}
+/* свет гаснет: пауза, срок вышел, не оплачено */
+.lamp-off{display:none}
+.app.dark-lamp .beam,.app.dark-lamp .halo{display:none}
+.app.dark-lamp .lamp-off{display:inline}
+.ember{animation:ember 4s ease-in-out infinite alternate}
+@keyframes ember{from{opacity:.25}to{opacity:.7}}
+/* лимит кончился: фонарь мигает */
+.app[data-state="quota"] .beam,.app[data-state="quota"] .halo{animation:flicker 2.4s steps(1,end) infinite}
+@keyframes flicker{0%{opacity:1}12%{opacity:.25}16%{opacity:.9}40%{opacity:.35}44%{opacity:1}70%{opacity:.5}74%{opacity:1}}
+
+.stamp{position:absolute;top:-18px;right:-6px;width:104px;height:104px;animation:stamp .9s cubic-bezier(.165,.84,.44,1) 1.3s both}
+@keyframes stamp{from{opacity:0;transform:scale(1.35) rotate(-2deg)}to{opacity:1;transform:rotate(-10deg)}}
+
+/* текст и карточки */
+.lead{padding:22px 22px 0;display:flex;flex-direction:column;gap:8px}
+.lead .kicker{color:var(--accent-ink)}
+.lead h1{margin:0;font-size:34px;line-height:1.06;font-weight:300;letter-spacing:-.02em}
+.lead h1 em{font-style:italic;color:var(--accent)}
+.lead p{margin:2px 0 0;font-size:15.5px;line-height:1.5;color:var(--ink3)}
+.card{margin:16px 16px 0;padding:14px 16px;background:var(--card);border-radius:16px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.row .mono{color:var(--muted)}
+.row .val{font-size:15px;font-weight:500}
+.row .val span{color:var(--ink3);font-weight:400}
+.hr{height:1px;background:var(--hair)}
+.track{position:relative;height:2px;background:var(--hair);border-radius:2px}
+.track i{position:absolute;left:0;top:0;bottom:0;background:var(--ink);border-radius:2px;animation:fill 1.6s cubic-bezier(.16,1,.3,1) .9s both}
+@keyframes fill{from{width:0}}
+.track b{position:absolute;top:-4px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--clay)}
+.fresh{margin:10px 22px 0;font-size:12.5px;color:var(--muted)}
+.fresh button{all:unset;cursor:pointer;color:var(--accent-ink);font-weight:500}
+.actions{margin:14px 16px 0;display:flex;flex-direction:column;gap:10px}
+.btn{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;min-height:52px;padding:0 20px;border-radius:10px;font-size:15.5px;font-weight:500}
+.btn .arr{transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.btn:active .arr,.btn:hover .arr{transform:translateX(3px)}
+.btn:focus-visible,.seg button:focus-visible,.icon-btn:focus-visible,.tab:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+.primary{background:var(--ink);color:var(--paper)}
+.soft{background:var(--card);color:var(--ink);box-shadow:inset 0 0 0 1px var(--ringc)}
+.small{min-height:44px;font-size:14.5px;background:var(--paper);color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+
+/* вкладка «Ключ» */
+.seg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;background:var(--card);border-radius:12px;margin:16px 16px 0}
+.seg button{all:unset;cursor:pointer;text-align:center;padding:10px 0;border-radius:9px;font-size:13.5px;font-weight:500;color:var(--ink3);transition:background .3s,color .3s}
+.seg button[aria-selected="true"]{background:var(--paper);color:var(--ink);box-shadow:inset 0 0 0 1px var(--hair)}
+.step{display:flex;gap:12px;align-items:flex-start;animation:rise .8s cubic-bezier(.16,1,.3,1) both}
+.num{flex:none;width:26px;height:26px;border-radius:50%;box-shadow:inset 0 0 0 1.4px var(--ink);display:flex;align-items:center;justify-content:center;font-family:"Geist Mono",monospace;font-size:12px}
+.step.must .num{background:var(--accent);color:#FAF9F5;box-shadow:none}
+.step span.t{font-size:14px;line-height:1.42;padding-top:4px}
+.step.must span.t{font-weight:500}
+.must-card{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.badge{margin-left:auto;padding:4px 8px;border-radius:6px;background:var(--accent);color:#FAF9F5;font-size:10px}
+.keybox{margin:12px 16px 0;padding:4px 16px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--ringc)}
+.keyrow{display:flex;align-items:center;gap:12px;padding:12px 0}
+.keyrow .meta{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.masked{font-family:"Geist Mono",monospace;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.icon-btn{all:unset;cursor:pointer;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--ringc);background:var(--paper);flex:none}
+.icon-btn svg{width:18px;height:18px;fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+
+/* вкладка «Помощь» */
+.help{margin:16px 16px 0;display:flex;flex-direction:column;gap:10px}
+.help details{background:var(--card);border-radius:14px;padding:0 16px}
+.help summary{cursor:pointer;list-style:none;padding:15px 0;font-size:15px;font-weight:500;display:flex;align-items:center;gap:10px}
+.help summary::-webkit-details-marker{display:none}
+.help summary::after{content:"+";margin-left:auto;font-family:"Geist Mono",monospace;color:var(--muted)}
+.help details[open] summary::after{content:"−"}
+.help details p{margin:0 0 14px;font-size:14px;line-height:1.5;color:var(--ink2)}
+
+/* нижнее меню */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;border-top:1px solid var(--hair);background:var(--paper);padding:0 8px calc(10px + env(safe-area-inset-bottom));z-index:5}
+nav.tabs .in{display:flex;width:100%;max-width:480px}
+.tab{all:unset;cursor:pointer;flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 0 6px;color:var(--muted);font-size:12px;font-weight:500}
+.tab svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--ink)}
+.tab .dot{width:5px;height:5px;border-radius:50%;background:transparent}
+.tab[aria-current="page"] .dot{background:var(--clay)}
+
+/* подсказка внизу экрана */
+.toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,12px);opacity:0;pointer-events:none;background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:12px;font-size:14px;line-height:1.4;max-width:min(420px,calc(100vw - 32px));transition:opacity .3s,transform .4s cubic-bezier(.16,1,.3,1);z-index:9}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* без данных */
+.empty{padding:40px 24px;display:flex;flex-direction:column;gap:12px}
+.empty h1{margin:0;font-size:30px;font-weight:300}
+.empty p{margin:0;color:var(--ink3);line-height:1.5}
+
+@media (prefers-reduced-motion: reduce){.app *{animation:none !important}.draw{stroke-dashoffset:0}}
+</style>
+</head>
+<body>
+<div class="app" id="app" data-state="on">
+  <header class="top rise">
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="fill:none;stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21 L10.2 9 L13.8 9 L15 21 Z"/><path d="M8.5 9 L15.5 9"/><path d="M10 9 L10 6 L14 6 L14 9"/><path d="M12 6 L12 3.6"/><circle cx="12" cy="7.5" r="0.6" fill="#D97757" stroke="none"/></svg>
+    <span class="serif name">ZapretVPN</span>
+    <span class="mono who"><i></i><span id="who">онлайн</span></span>
+  </header>
+
+  <main>
+    <!-- ============ Маяк ============ -->
+    <section id="tab-home" aria-label="Маяк">
+      <div class="scene rise" style="animation-delay:.08s">
+        <svg class="art" viewBox="0 0 358 288" role="img" id="art-label" aria-label="Маяк на скале светит над морем, к нему плывёт лодка">
+          <defs>
+            <filter id="ink" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="2.2" xChannelSelector="R" yChannelSelector="G"/></filter>
+            <filter id="gouache" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="3" seed="7"/><feDisplacementMap in="SourceGraphic" scale="6" xChannelSelector="R" yChannelSelector="G"/></filter>
+            <linearGradient id="beamG" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#FAF9F5" stop-opacity="0.95"/><stop offset="0.55" stop-color="#EBDBBC" stop-opacity="0.5"/><stop offset="1" stop-color="#EBDBBC" stop-opacity="0"/></linearGradient>
+            <radialGradient id="vig" cx="50%" cy="45%" r="75%"><stop offset="0.7" stop-color="var(--vig)" stop-opacity="0"/><stop offset="1" stop-color="var(--vig)" stop-opacity="0.45"/></radialGradient>
+          </defs>
+          <!-- день: солнце, облака, чайки -->
+          <g class="day-only">
+            <g class="float"><circle class="paint" cx="70" cy="66" r="24" fill="#D97757" filter="url(#gouache)"/></g>
+            <g fill="none" stroke="#141413" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#ink)">
+              <path class="draw" pathLength="1" d="M138 62 C138 54 148 50 154 55 C157 47 170 46 174 54 C182 51 190 57 188 64 L140 64 C138 64 138 63 138 62 Z"/>
+              <path class="draw" pathLength="1" d="M206 38 C206 33 213 31 217 34 C219 29 228 29 230 34 C235 32 240 36 238 40 L208 40 C206 40 206 39 206 38 Z"/>
+            </g>
+            <g class="gull" fill="none" stroke="#141413" stroke-width="1.6" stroke-linecap="round"><path d="M112 104 q5 -6 10 0 q5 -6 10 0"/><path d="M146 88 q3.5 -4 7 0 q3.5 -4 7 0" opacity="0.8"/></g>
+          </g>
+          <!-- ночь: луна и звёзды -->
+          <g class="night-only">
+            <g fill="#EBDBBC">
+              <circle class="star" cx="40" cy="30" r="1.3"/><circle class="star" style="animation-delay:-1.1s" cx="118" cy="22" r="1"/>
+              <circle class="star" style="animation-delay:-2.3s" cx="176" cy="48" r="1.4"/><circle class="star" style="animation-delay:-0.6s" cx="226" cy="18" r="1.1"/>
+              <circle class="star" style="animation-delay:-2.9s" cx="318" cy="36" r="1.3"/><circle class="star" style="animation-delay:-1.7s" cx="88" cy="96" r="0.9"/>
+            </g>
+            <g class="float">
+              <path class="paint" d="M86 46 A22 22 0 1 0 104 82 A18 18 0 1 1 86 46 Z" fill="#EBDBBC" filter="url(#gouache)"/>
+              <path d="M86 46 A22 22 0 1 0 104 82 A18 18 0 1 1 86 46 Z" fill="none" stroke="#ECE9E0" stroke-width="1.6" filter="url(#ink)"/>
+            </g>
+          </g>
+          <g class="beam"><path d="M276 97 L-30 40 L-30 154 Z" fill="url(#beamG)"/></g>
+          <path class="paint" d="M0 210 C40 206 82 213 122 209 C162 205 202 211 242 208 L358 209 L358 288 L0 288 Z" fill="#6A9BCC" style="opacity:var(--sea-op)" filter="url(#gouache)"/>
+          <g fill="none" stroke="var(--line)" stroke-width="1.5" stroke-linecap="round" opacity="0.7">
+            <path class="wave" d="M14 232 q9 -5 18 0 t18 0"/>
+            <path class="wave" style="animation-delay:-2.4s" d="M78 252 q9 -5 18 0 t18 0 t18 0"/>
+            <path class="wave" style="animation-delay:-4.1s" d="M150 238 q9 -5 18 0 t18 0"/>
+            <path class="wave" style="animation-delay:-1.2s" d="M28 272 q9 -5 18 0 t18 0"/>
+            <path class="wave" style="animation-delay:-3.3s" d="M126 276 q9 -5 18 0 t18 0"/>
+          </g>
+          <g class="boat-drift"><g class="boat">
+            <path d="M100 196 L106 198 L100 200 Z" fill="#D97757"/>
+            <path d="M101 199 L101 216 L115 216 Z" fill="var(--sail)" stroke="var(--line)" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M86 217 L118 217 L111 225 L92 225 Z" fill="var(--hull)" stroke="var(--line)" stroke-width="1.6" stroke-linejoin="round"/>
+            <path d="M100 196 L100 217" stroke="var(--line)" stroke-width="1.6" stroke-linecap="round"/>
+          </g></g>
+          <path class="paint" d="M196 288 C198 260 204 236 214 220 C222 206 236 198 252 196 C272 194 296 196 316 200 C334 204 348 210 358 214 L358 288 Z" fill="var(--rock)" filter="url(#gouache)"/>
+          <g fill="none" stroke="var(--line)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#ink)">
+            <path class="draw" pathLength="1" d="M196 288 C198 260 204 236 214 220 C222 206 236 198 252 196 C272 194 296 196 316 200 C334 204 348 210 358 214"/>
+            <path d="M226 236 l13 5 M300 228 l-9 9 M248 258 l10 -3 M326 246 l9 6" opacity="0.55"/>
+          </g>
+          <g stroke="var(--olive)" stroke-width="1.8" stroke-linecap="round" fill="none"><path d="M234 198 l-3 -8 M238 197 l1 -9 M242 197 l4 -7 M318 201 l-2 -8 M322 202 l2 -8"/></g>
+          <circle class="halo" cx="276" cy="97" r="18" fill="#FAF9F5" opacity="0.6"/>
+          <g class="paint">
+            <path d="M262 198 L268 112 L284 112 L290 198 Z" fill="#EBDBBC"/>
+            <path d="M262.98 184 L263.95 170 L288.05 170 L289.02 184 Z" fill="#D97757"/>
+            <path d="M265.07 154 L266.05 140 L285.95 140 L286.93 154 Z" fill="#D97757"/>
+            <rect x="267" y="88" width="18" height="18" fill="#FFF3D6"/>
+            <rect class="lamp-off" x="267" y="88" width="18" height="18" fill="#3A3936"/>
+            <path d="M265 88 Q276 72 287 88 Z" fill="#D97757"/>
+          </g>
+          <g fill="none" stroke="#141413" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" filter="url(#ink)">
+            <path class="draw" pathLength="1" d="M262 198 L268 112 L284 112 L290 198"/>
+            <path d="M272 198 L272 189 Q276 184 280 189 L280 198"/>
+            <path d="M274.5 126 L274.5 133 M277.5 126 L277.5 133"/>
+            <path d="M261 112 L291 112 M262 106 L290 106"/>
+            <path d="M263 106 L263 99 M269.5 106 L269.5 99 M276 106 L276 99 M282.5 106 L282.5 99 M289 106 L289 99 M262 99 L290 99" stroke-width="1.4"/>
+            <path d="M267 99 L267 88 L285 88 L285 99"/>
+            <path d="M265 88 Q276 72 287 88"/>
+            <path d="M276 78 L276 70"/>
+          </g>
+          <circle class="halo" cx="276" cy="95" r="5" fill="#D97757"/>
+          <circle class="lamp-off ember" cx="276" cy="97" r="3" fill="#D97757"/>
+          <rect x="0" y="0" width="358" height="288" fill="url(#vig)" pointer-events="none"/>
+        </svg>
+        <div class="stamp" aria-hidden="true">
+          <svg viewBox="0 0 104 104" width="104" height="104">
+            <defs><path id="ring" d="M52 52 m-40.5 0 a40.5 40.5 0 1 1 81 0 a40.5 40.5 0 1 1 -81 0"/></defs>
+            <circle cx="52" cy="52" r="47" fill="var(--paper)" fill-opacity="0.4" stroke="var(--accent)" stroke-width="1.6"/>
+            <circle cx="52" cy="52" r="34" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
+            <text font-family="Geist Mono, monospace" font-size="7.4" letter-spacing="1.2" fill="var(--accent)"><textPath href="#ring" id="stamp-ring">СВЕТ ГОРИТ · ZAPRETVPN ·</textPath></text>
+            <text x="52" y="58" text-anchor="middle" font-family="Literata, Georgia, serif" font-size="29" font-weight="300" fill="var(--accent)" id="stamp-num">∞</text>
+            <text x="52" y="71" text-anchor="middle" font-family="Geist Mono, monospace" font-size="7" letter-spacing="1.4" fill="var(--accent)" id="stamp-unit">ДНЕЙ</text>
+          </svg>
+        </div>
+      </div>
+
+      <div class="lead rise" style="animation-delay:.16s">
+        <div class="mono kicker" id="kicker">Подписка · свет горит</div>
+        <h1 class="serif" id="headline">Ваш маяк <em>светит</em></h1>
+        <p id="sub"></p>
+      </div>
+
+      <div class="card rise" style="animation-delay:.24s">
+        <div class="row"><span class="mono" id="month-label">Расход</span><span class="val" id="used"></span></div>
+        <div class="track" id="track"><i id="track-fill"></i><b id="track-dot"></b></div>
+        <div class="hr"></div>
+        <div class="row"><span class="mono">Сегодня</span><span class="val" id="today"></span></div>
+      </div>
+      <p class="fresh" id="fresh"></p>
+
+      <div class="actions rise" style="animation-delay:.32s" id="home-actions"></div>
+    </section>
+
+    <!-- ============ Ключ ============ -->
+    <section id="tab-key" aria-label="Ключ и подключение" hidden>
+      <div class="lead rise">
+        <div class="mono kicker">Ключ · вход в гавань</div>
+        <h1 class="serif" style="font-size:32px">Ключ от <em>гавани</em></h1>
+        <p style="font-size:15px">Выберите устройство — покажу, куда вставить ключ.</p>
+      </div>
+      <div class="seg rise" role="tablist" aria-label="Устройство" id="platforms" style="animation-delay:.08s"></div>
+      <div class="card rise" style="animation-delay:.16s;margin-top:12px">
+        <div class="row"><span class="mono" id="app-label"></span><span class="mono" style="color:var(--accent-ink)" id="app-count"></span></div>
+        <div id="steps" style="display:flex;flex-direction:column;gap:10px"></div>
+        <button class="btn primary" type="button" id="add-key" style="margin-top:2px"><span id="add-key-text">Скопировать ключ</span><span class="arr">→</span></button>
+      </div>
+      <div class="card must-card rise" style="animation-delay:.2s;margin-top:12px" id="routing">
+        <div style="display:flex;align-items:center;gap:10px">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" style="fill:none;stroke:var(--ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round"><path d="M4 19 C8 14 10 10 12 4"/><path d="M12 4 C14 10 16 14 20 19"/><path d="M7.5 14 L16.5 14"/><circle cx="12" cy="4" r="1.2" fill="#D97757" stroke="none"/></svg>
+          <span style="font-size:15px;font-weight:500">Российские сайты — напрямую</span>
+          <span class="mono badge">Обязательно</span>
+        </div>
+        <span style="font-size:13.5px;line-height:1.45;color:var(--ink2)" id="routing-text"></span>
+        <button class="btn small" type="button" id="routing-btn">Получить маршруты для Happ<span class="arr">→</span></button>
+      </div>
+      <div class="keybox rise" style="animation-delay:.24s">
+        <div class="keyrow">
+          <div class="meta">
+            <span class="mono" style="color:var(--muted)">VLESS · Reality · TCP</span>
+            <span style="font-size:15px;font-weight:500">Ваш ключ</span>
+            <span class="masked" id="masked">vless://••••••••@••••</span>
+          </div>
+          <button class="icon-btn" type="button" id="copy-key" aria-label="Скопировать ключ"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5 L15.5 6.5 C15.5 5.4 14.6 4.5 13.5 4.5 L6.5 4.5 C5.4 4.5 4.5 5.4 4.5 6.5 L4.5 13.5 C4.5 14.6 5.4 15.5 6.5 15.5 L8.5 15.5"/></svg></button>
+          <button class="icon-btn" type="button" id="qr-key" aria-label="Получить QR-код ключа в чате"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="6" height="6" rx="1"/><rect x="13.5" y="4.5" width="6" height="6" rx="1"/><rect x="4.5" y="13.5" width="6" height="6" rx="1"/><path d="M13.5 13.5 L16 13.5 M19.5 13.5 L19.5 16 M13.5 16.5 L13.5 19.5 L16.5 19.5 M17 17 L19.5 19.5"/></svg></button>
+        </div>
+      </div>
+      <p class="fresh">Ключ только ваш: не пересылайте его, по нему считается ваш расход.</p>
+    </section>
+
+    <!-- ============ Помощь ============ -->
+    <section id="tab-help" aria-label="Помощь" hidden>
+      <div class="lead rise">
+        <div class="mono kicker">Помощь · если что-то не так</div>
+        <h1 class="serif" style="font-size:32px">Если свет <em>мигает</em></h1>
+        <p style="font-size:15px">Частые случаи и что делать. Не помогло — напишите владельцу через бота.</p>
+      </div>
+      <div class="help rise" style="animation-delay:.1s">
+        <details><summary>VPN включён, но ничего не открывается</summary><p>Удалите в приложении старые серверы и добавьте ключ заново (вкладка «Ключ»). Если не помогло, выключите и включите VPN.</p></details>
+        <details><summary>Не открываются банки и Госуслуги</summary><p>Добавьте профиль «Российские сайты — напрямую» на вкладке «Ключ». С ним российские сайты идут мимо VPN и не видят его.</p></details>
+        <details><summary>Айфон: после VPN пропал интернет</summary><p>Включите и выключите авиарежим. В Happ откройте «Настройки», раздел для разработчиков, и выключите «Включить все сети». На айфоне подключайтесь по ключу TCP.</p></details>
+        <details><summary>Маяк погас</summary><p>Свет гаснет, когда кончился срок, лимит трафика на месяц или ссылку поставили на паузу. Причина и кнопка, что делать, на главной вкладке.</p></details>
+        <details><summary>Хочу ещё одно устройство</summary><p>Один и тот же ключ работает на телефоне и компьютере. Расход у них общий.</p></details>
+      </div>
+      <div class="actions"><button class="btn soft" type="button" data-bot="help">Открыть бота<span class="arr">→</span></button></div>
+    </section>
+
+    <!-- ============ без данных ============ -->
+    <section id="tab-empty" class="empty" hidden>
+      <div class="mono" style="color:var(--accent-ink)">ZapretVPN · Маяк</div>
+      <h1 class="serif">Откройте Маяк <em style="color:var(--accent);font-style:italic">из бота</em></h1>
+      <p>Это окно показывает вашу подписку и ключ. Откройте его кнопкой «Маяк» в боте ZapretVPN: так в нём появятся ваши данные.</p>
+    </section>
+  </main>
+
+  <nav class="tabs" aria-label="Разделы" id="tabs">
+    <div class="in">
+      <button class="tab" type="button" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21 L10.2 9 L13.8 9 L15 21 Z"/><path d="M8.5 9 L15.5 9"/><path d="M10 9 L10 6 L14 6 L14 9"/><path d="M12 6 L12 3.6"/></svg>Маяк<i class="dot"></i></button>
+      <button class="tab" type="button" data-tab="key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.6"/><path d="M11.6 12 L20.5 12 M17.5 12 L17.5 15 M20.5 12 L20.5 14.2"/></svg>Ключ<i class="dot"></i></button>
+      <button class="tab" type="button" data-tab="help"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5 C4.5 5.4 5.4 4.5 6.5 4.5 L17.5 4.5 C18.6 4.5 19.5 5.4 19.5 6.5 L19.5 14 C19.5 15.1 18.6 16 17.5 16 L11 16 L7 19.5 L7 16 L6.5 16 C5.4 16 4.5 15.1 4.5 14 Z"/><path d="M9 10.2 L15 10.2"/></svg>Помощь<i class="dot"></i></button>
+    </div>
+  </nav>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var MONTHS_NOM = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
+  var MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+  var $ = function (id) { return document.getElementById(id); };
+  var app = $("app");
+
+  // ---- данные из адреса: всё после # (на хостинг эта часть не уходит). Телеграм может дописать туда свои
+  // параметры через & или ?, поэтому ищем именно d=
+  function readData() {
+    var raw = (location.hash || "") + "&" + (location.search || "");
+    var parts = raw.replace(/^#/, "").split(/[&?#]/);
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i].indexOf("d=") === 0) {
+        try {
+          var b64 = parts[i].slice(2).replace(/-/g, "+").replace(/_/g, "/");
+          while (b64.length % 4) b64 += "=";
+          var bin = atob(b64), bytes = new Uint8Array(bin.length);
+          for (var j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
+          return JSON.parse(new TextDecoder().decode(bytes));
+        } catch (e) { return null; }
+      }
+    }
+    return null;
+  }
+
+  function tg() { return (window.Telegram && window.Telegram.WebApp) || null; }
+
+  // ---- тема: как в Телеграме, иначе как в системе
+  function applyTheme() {
+    var night = false, w = tg();
+    // вне Телеграма его скрипт всегда говорит «светлая»: тогда верим системе
+    if (w && w.colorScheme && w.platform && w.platform !== "unknown") night = w.colorScheme === "dark";
+    else {
+      var m = /tgWebAppThemeParams=([^&]+)/.exec(location.hash || "");
+      var bg = null;
+      try { bg = m ? JSON.parse(decodeURIComponent(m[1])).bg_color : null; } catch (e) { bg = null; }
+      if (bg && /^#[0-9a-f]{6}$/i.test(bg)) {
+        var r = parseInt(bg.substr(1, 2), 16), g = parseInt(bg.substr(3, 2), 16), b = parseInt(bg.substr(5, 2), 16);
+        night = (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+      } else night = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    }
+    document.documentElement.classList.toggle("night", !!night);
+    if (w && w.setHeaderColor) { try { w.setHeaderColor(night ? "#1A1918" : "#FAF9F5"); w.setBackgroundColor(night ? "#1A1918" : "#FAF9F5"); } catch (e) {} }
+  }
+
+  function haptic() { var w = tg(); try { if (w && w.HapticFeedback) w.HapticFeedback.impactOccurred("light"); } catch (e) {} }
+
+  var toastTimer = null;
+  function toast(text) {
+    var t = $("toast"); t.textContent = text; t.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 3600);
+  }
+
+  function copy(text, done) {
+    function fallback() {
+      var area = document.createElement("textarea");
+      area.value = text; area.setAttribute("readonly", ""); area.style.position = "fixed"; area.style.opacity = "0";
+      document.body.appendChild(area); area.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      document.body.removeChild(area);
+      toast(ok ? done : "Не получилось скопировать. Возьмите ключ в боте: «Моя ссылка».");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(done); }, fallback);
+    else fallback();
+  }
+
+  // ---- открыть нужную команду в боте (оплата, QR-код, профиль для Happ живут там)
+  var D = readData();
+  function openBot(code) {
+    haptic();
+    var bot = D && D.b;
+    if (!bot) { toast("Откройте бота ZapretVPN в Телеграме."); return; }
+    var url = "https://t.me/" + bot + (code ? "?start=" + code : "");
+    var w = tg();
+    if (w && w.openTelegramLink) { try { w.openTelegramLink(url); return; } catch (e) {} }
+    window.location.href = url;
+  }
+
+  function gb(mb) { return (mb / 1000).toFixed(1).replace(".", ","); }
+  function size(mb) { return mb >= 1000 ? gb(mb) + " ГБ" : Math.round(mb) + " МБ"; }
+
+  function renderHome() {
+    var state = D.s || "on", now = new Date(D.g ? D.g * 1000 : Date.now());
+    var month = now.getMonth(), next = (month + 1) % 12;
+    app.dataset.state = state;
+    app.classList.toggle("dark-lamp", state === "paused" || state === "expired" || state === "unpaid");
+    $("who").textContent = D.n || "онлайн";
+
+    // сколько дней до конца срока
+    var days = null, till = null;
+    if (D.e) {
+      till = new Date(D.e + "T23:59:59");
+      days = Math.max(0, Math.ceil((till - now) / 86400000));
+    }
+    var tillText = till ? till.getDate() + " " + MONTHS_GEN[till.getMonth()] : "";
+    var ring, num, unit;
+    if (state === "on") {
+      ring = till ? "ДО " + tillText.toUpperCase() + " " + till.getFullYear() + " · СВЕТ ГОРИТ · ZAPRETVPN ·" : "БЕЗ СРОКА · СВЕТ ГОРИТ · ZAPRETVPN · ";
+      num = days === null ? "∞" : String(days); unit = days === null ? "СРОК" : "ДНЕЙ";
+    } else {
+      ring = "СВЕТ ПОГАС · ZAPRETVPN · СВЕТ ПОГАС · ZAPRETVPN ·";
+      num = state === "quota" ? "!" : "0"; unit = state === "paused" ? "ПАУЗА" : "ДНЕЙ";
+    }
+    $("stamp-ring").textContent = ring; $("stamp-num").textContent = num; $("stamp-unit").textContent = unit;
+
+    var used = D.u || 0, limit = D.l || 0;
+    var T = {
+      on: ["Подписка · свет горит", 'Ваш маяк <em>светит</em>',
+           (till ? "Подписка до " + tillText + " — ещё " + days + " " + plural(days, "день", "дня", "дней") + ". " : "Подписка без срока. ") + "Ключ на месте, можно плыть."],
+      quota: ["Лимит трафика", 'Масло <em>на исходе</em>',
+              gb(used) + " из " + limit + " ГБ за " + MONTHS_NOM[month] + ". С 1 " + MONTHS_GEN[next] + " лимит обнулится — или попросите добавить."],
+      expired: ["Срок вышел", 'Свет <em>погас</em>',
+                "Подписка закончилась" + (till ? " " + tillText : "") + ". Попросите продлить — маяк загорится сразу."],
+      paused: ["Пауза", 'Маяк <em>отдыхает</em>', "Ссылка на паузе. Напишите владельцу, когда VPN снова понадобится."],
+      unpaid: ["Оплата", 'Свет <em>погас</em>', "Оплата за " + MONTHS_NOM[month] + " не получена. Как только владелец отметит оплату, маяк загорится."]
+    }[state] || ["Подписка", "Ваш маяк", ""];
+    $("kicker").textContent = T[0]; $("headline").innerHTML = T[1]; $("sub").textContent = T[2];
+    $("art-label").setAttribute("aria-label", state === "on" ? "Маяк на скале светит над морем, к нему плывёт лодка" : "Маяк на скале, фонарь не горит");
+
+    $("month-label").textContent = "Расход · " + MONTHS_NOM[month];
+    $("used").innerHTML = limit > 0 ? gb(used) + ' <span>из ' + limit + ' ГБ</span>' : gb(used) + ' <span>ГБ · без лимита</span>';
+    var pct = limit > 0 ? Math.min(100, used / (limit * 10)) : 0;
+    $("track-fill").style.width = pct + "%"; $("track-dot").style.left = pct + "%";
+    $("track").hidden = !(limit > 0);
+    $("today").textContent = size(D.t || 0);
+    $("fresh").innerHTML = "";
+    var stamp = document.createElement("span");
+    stamp.textContent = "Данные на " + pad(now.getDate()) + "." + pad(now.getMonth() + 1) + ", " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + " · ";
+    var refresh = document.createElement("button"); refresh.type = "button"; refresh.textContent = "обновить";
+    refresh.addEventListener("click", function () { openBot(""); });
+    $("fresh").appendChild(stamp); $("fresh").appendChild(refresh);
+
+    // кнопки: что сейчас важнее всего
+    var acts = {
+      on: [[till && days <= 7 ? "Попросить продлить" : "Подключить устройство", till && days <= 7 ? "bot:renew" : "tab:key", "primary"],
+           till && days <= 7 ? ["Подключить устройство", "tab:key", "soft"] : ["Попросить ещё трафика", "bot:more", "soft"]],
+      quota: [["Попросить ещё трафика", "bot:more", "primary"], ["Подключить устройство", "tab:key", "soft"]],
+      expired: [["Попросить продлить", "bot:renew", "primary"], ["Открыть бота", "bot:", "soft"]],
+      paused: [["Написать владельцу", "bot:renew", "primary"], ["Открыть бота", "bot:", "soft"]],
+      unpaid: [["Как оплатить", "bot:pay", "primary"], ["Открыть бота", "bot:", "soft"]]
+    }[state] || [];
+    if (state === "on" && !(limit > 0) && !(till && days <= 7)) acts[1] = ["Открыть бота", "bot:", "soft"];
+    var box = $("home-actions"); box.innerHTML = "";
+    acts.forEach(function (a) {
+      var b = document.createElement("button"); b.type = "button"; b.className = "btn " + a[2];
+      var t = document.createElement("span"); t.textContent = a[0];
+      var arr = document.createElement("span"); arr.className = "arr"; arr.textContent = "→";
+      b.appendChild(t); b.appendChild(arr);
+      b.addEventListener("click", function () {
+        if (a[1].indexOf("tab:") === 0) showTab(a[1].slice(4)); else openBot(a[1].slice(4));
+      });
+      box.appendChild(b);
+    });
+  }
+
+  function plural(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  // ---- вкладка «Ключ»
+  var ROUTES = "Обязательно: профиль «Российские сайты — напрямую» (кнопка ниже). Без него банки, Госуслуги и маркетплейсы могут не открыться.";
+  var APPS = {
+    android: { label: "Android · приложение Happ", count: "4 шага", steps: [
+      "Установите Happ из Google Play — бесплатно.",
+      "Нажмите «Скопировать ключ», откройте Happ, нажмите «+» и выберите вставку из буфера.",
+      ROUTES,
+      "Включите большой переключатель. Готово."] },
+    ios: { label: "iPhone · приложение Happ", count: "4 шага", steps: [
+      "Установите Happ из App Store.",
+      "Нажмите «Скопировать ключ», откройте Happ, нажмите «+» и выберите вставку из буфера. Разрешите VPN.",
+      ROUTES,
+      "Включите переключатель — значок VPN появится в углу экрана."] },
+    windows: { label: "Windows · Happ или Zapret Control+", count: "3 шага", steps: [
+      "Скачайте Happ для Windows (или Zapret Control+).",
+      "Нажмите «Скопировать ключ» и вставьте его в программу: «+» в Happ или поле «Подписка или ключ» в Zapret Control+.",
+      "Включите переключатель."] },
+    mac: { label: "Mac · приложение Happ", count: "4 шага", steps: [
+      "Установите Happ из Mac App Store.",
+      "Нажмите «Скопировать ключ», откройте Happ, нажмите «+» и выберите вставку из буфера.",
+      ROUTES,
+      "Включите переключатель в строке меню."] }
+  };
+  var NAMES = { android: "Android", ios: "iPhone", windows: "Windows", mac: "Mac" };
+  var platform = /iphone|ipad|ipod/i.test(navigator.userAgent) ? "ios" : /android/i.test(navigator.userAgent) ? "android"
+    : /mac/i.test(navigator.platform || "") ? "mac" : /win/i.test(navigator.platform || "") ? "windows" : "android";
+
+  function renderKey() {
+    var seg = $("platforms"); seg.innerHTML = "";
+    Object.keys(NAMES).forEach(function (key) {
+      var b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", key === platform ? "true" : "false"); b.textContent = NAMES[key];
+      b.addEventListener("click", function () { platform = key; haptic(); renderKey(); });
+      seg.appendChild(b);
+    });
+    var a = APPS[platform];
+    $("app-label").textContent = a.label; $("app-count").textContent = a.count;
+    var steps = $("steps"); steps.innerHTML = "";
+    a.steps.forEach(function (text, i) {
+      var row = document.createElement("div"); row.className = "step" + (text === ROUTES ? " must" : "");
+      row.style.animationDelay = (i * 0.08) + "s";
+      var n = document.createElement("span"); n.className = "num"; n.textContent = i + 1;
+      var t = document.createElement("span"); t.className = "t"; t.textContent = text;
+      row.appendChild(n); row.appendChild(t); steps.appendChild(row);
+    });
+    $("routing-text").textContent = platform === "windows"
+      ? "В Zapret Control+ российские сайты и так идут напрямую. В Happ для Windows добавьте профиль из бота."
+      : "Без этого шага банки, Госуслуги и маркетплейсы могут не открыться через VPN. Добавьте один раз — Happ запомнит.";
+    var k = D.k || "";
+    $("masked").textContent = k ? k.slice(0, 10) + "••••••••@••••" : "ключ в боте: «Моя ссылка»";
+  }
+
+  function copyKey() {
+    haptic();
+    if (!D.k) { openBot("key"); return; }
+    copy(D.k, "Ключ скопирован. Откройте Happ, нажмите «+» и выберите вставку из буфера.");
+  }
+
+  // ---- вкладки
+  function showTab(name) {
+    ["home", "key", "help"].forEach(function (t) { $("tab-" + t).hidden = t !== name; });
+    document.querySelectorAll(".tab").forEach(function (b) {
+      if (b.dataset.tab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+    });
+    window.scrollTo(0, 0);
+  }
+
+  var tgReady = false;
+  function hookTelegram() {
+    var w = tg();
+    if (!w || tgReady) return;
+    tgReady = true;
+    try { w.ready(); w.expand(); w.onEvent("themeChanged", applyTheme); } catch (e) {}
+    applyTheme();
+  }
+
+  function start() {
+    applyTheme();
+    hookTelegram();
+    if (!D) {
+      ["home", "key", "help"].forEach(function (t) { $("tab-" + t).hidden = true; });
+      $("tab-empty").hidden = false; $("tabs").hidden = true; return;
+    }
+    renderHome(); renderKey();
+    document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("click", function () { haptic(); showTab(b.dataset.tab); }); });
+    $("add-key").addEventListener("click", copyKey);
+    $("copy-key").addEventListener("click", copyKey);
+    $("qr-key").addEventListener("click", function () { openBot("qr"); });
+    $("routing-btn").addEventListener("click", function () { openBot("ru"); });
+    document.querySelectorAll("[data-bot]").forEach(function (b) { b.addEventListener("click", function () { openBot(b.dataset.bot); }); });
+  }
+
+  // скрипт стоит в конце страницы: всё нужное уже есть, ждать загрузки шрифтов и Телеграма не нужно
+  start();
+  // скрипт Телеграма может прийти позже страницы: тогда подключаемся к нему и ещё раз подстраиваем тему
+  var tgScript = document.getElementById("tg-js");
+  if (tgScript) tgScript.addEventListener("load", hookTelegram);
+})();
+</script>
+</body>
+</html>
