@@ -11,8 +11,12 @@
 
   Это пустой шаблон: в нём нет ничьих данных. Бот открывает его по кнопке и кладёт данные человека
   (срок, расход, его ключ) в адрес после знака #. Эта часть адреса остаётся в телефоне и на хостинг
-  не уходит, поэтому хостинг не видит ни ключей, ни расхода. Сетевых запросов страница не делает,
-  кроме шрифтов и скрипта Телеграма; оплата, QR-код и профиль для Happ открываются в самом боте.
+  не уходит, поэтому хостинг не видит ни ключей, ни расхода.
+
+  Кнопки работают прямо в окне: команда шифруется личным ключом человека (он тоже пришёл в адресе после #)
+  и кладётся в почтовый ящик, адрес которого дал бот. Бот забирает её, проверяет подпись Телеграма,
+  выполняет и кладёт зашифрованный ответ. Ящик видит только набор букв. Других запросов страница не делает,
+  кроме шрифтов и скрипта Телеграма.
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <!-- шрифты и скрипт Телеграма грузятся сбоку: если они тормозят, окно всё равно открывается сразу -->
@@ -183,7 +187,49 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
 .empty h1{margin:0;font-size:30px;font-weight:300}
 .empty p{margin:0;color:var(--ink3);line-height:1.5}
 
-@media (prefers-reduced-motion: reduce){.app *{animation:none !important}.draw{stroke-dashoffset:0}}
+/* баннер хозяина */
+.banner{margin:14px 16px 0;padding:12px 14px;border-radius:14px;box-shadow:inset 0 0 0 1.5px var(--accent);font-size:14px;line-height:1.45;color:var(--ink2)}
+/* список «ещё» и строки в шторке */
+.list{display:flex;flex-direction:column;background:var(--card);border-radius:14px;margin:12px 0 0}
+#home-more{margin:14px 16px 0}
+.li{all:unset;cursor:pointer;box-sizing:border-box;display:flex;align-items:center;gap:10px;min-height:50px;padding:12px 14px;border-bottom:1px solid var(--hair);font-size:15px;color:var(--ink)}
+.li:last-child{border-bottom:0}
+.li>span:first-child{flex:1 1 auto;min-width:0}
+.li .r{color:var(--muted);font-size:13.5px;text-align:right}
+.li .pa{color:var(--muted)}
+.li.static{cursor:default}
+.li.static .r{color:var(--ink2)}
+.li.danger{color:var(--accent-ink)}
+.li:focus-visible,.pick button:focus-visible,.sheet .x:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+/* шторка снизу */
+.sheet-back{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center;background:rgba(20,20,19,.4);opacity:0;transition:opacity .22s}
+.sheet-back.open{opacity:1}
+.sheet{position:relative;box-sizing:border-box;width:100%;max-width:480px;max-height:90vh;max-height:90dvh;overflow:auto;background:var(--paper);border-radius:22px 22px 0 0;padding:10px 16px calc(22px + env(safe-area-inset-bottom));transform:translateY(28px);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+.sheet-back.open .sheet{transform:none}
+.grab{width:40px;height:4px;border-radius:2px;background:var(--ringc);margin:0 auto 8px}
+.sheet h2{margin:6px 44px 4px 4px;font-size:25px;line-height:1.15;font-weight:300}
+.sheet .x{all:unset;cursor:pointer;position:absolute;top:14px;right:12px;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:20px}
+.note{margin:6px 4px 4px;color:var(--ink3);font-size:14px;line-height:1.45}
+.lbl{display:block;margin:14px 4px 4px;color:var(--muted)}
+.pick{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.pick button{all:unset;cursor:pointer;padding:9px 13px;border-radius:999px;font-size:14px;font-weight:500;color:var(--ink2);box-shadow:inset 0 0 0 1px var(--ringc)}
+.pick button[aria-pressed="true"]{background:var(--ink);color:var(--paper);box-shadow:none}
+.field{box-sizing:border-box;width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--ringc);background:var(--paper);color:var(--ink);font:inherit;font-size:16px}
+.field:focus{outline:none;border-color:var(--accent-ink)}
+textarea.field{min-height:120px;resize:vertical;line-height:1.45}
+.pre{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.5;background:var(--card);border-radius:12px;padding:12px 14px;margin:10px 0 0;max-height:52vh;overflow:auto}
+.code{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;line-height:1.5;word-break:break-all;background:var(--card);border-radius:12px;padding:12px 14px;margin:10px 0 0;user-select:all;-webkit-user-select:all}
+.qr{display:block;width:240px;max-width:78%;margin:10px auto 0;border-radius:14px;background:#fff;padding:8px;image-rendering:pixelated}
+.sheet .btn{margin-top:10px;width:100%}
+/* «выполняю…» */
+.busy{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(20,20,19,.22)}
+.busy div{display:flex;align-items:center;gap:12px;background:var(--paper);color:var(--ink);padding:16px 20px;border-radius:14px;font-size:15px;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid var(--ringc);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{z-index:40}
+#fresh-state{color:var(--accent-ink);margin-left:6px}
+
+@media (prefers-reduced-motion: reduce){.app *{animation:none !important}.draw{stroke-dashoffset:0}.spin{animation:none !important}}
 </style>
 </head>
 <body>
@@ -191,7 +237,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
   <header class="top rise">
     <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="fill:none;stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round"><path d="M9 21 L10.2 9 L13.8 9 L15 21 Z"/><path d="M8.5 9 L15.5 9"/><path d="M10 9 L10 6 L14 6 L14 9"/><path d="M12 6 L12 3.6"/><circle cx="12" cy="7.5" r="0.6" fill="#D97757" stroke="none"/></svg>
     <span class="serif name">ZapretVPN</span>
-    <span class="mono who"><i></i><span id="who">онлайн</span></span>
+    <span class="mono who"><i></i><span id="who">онлайн</span><span id="fresh-state" aria-live="polite"></span></span>
   </header>
 
   <main>
@@ -282,6 +328,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
         </div>
       </div>
 
+      <div class="banner rise" id="banner" hidden><span id="banner-text"></span></div>
       <div class="lead rise" style="animation-delay:.16s">
         <div class="mono kicker" id="kicker">Подписка · свет горит</div>
         <h1 class="serif" id="headline">Ваш маяк <em>светит</em></h1>
@@ -297,6 +344,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
       <p class="fresh" id="fresh"></p>
 
       <div class="actions rise" style="animation-delay:.32s" id="home-actions"></div>
+      <div class="list rise" style="animation-delay:.36s" id="home-more"></div>
     </section>
 
     <!-- ============ Ключ ============ -->
@@ -319,7 +367,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
           <span class="mono badge">Обязательно</span>
         </div>
         <span style="font-size:13.5px;line-height:1.45;color:var(--ink2)" id="routing-text"></span>
-        <button class="btn small" type="button" id="routing-btn">Получить маршруты для Happ<span class="arr">→</span></button>
+        <button class="btn small" type="button" id="routing-btn">Профиль для Happ<span class="arr">→</span></button>
       </div>
       <div class="keybox rise" style="animation-delay:.24s">
         <div class="keyrow">
@@ -329,7 +377,15 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
             <span class="masked" id="masked">vless://••••••••@••••</span>
           </div>
           <button class="icon-btn" type="button" id="copy-key" aria-label="Скопировать ключ"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5 L15.5 6.5 C15.5 5.4 14.6 4.5 13.5 4.5 L6.5 4.5 C5.4 4.5 4.5 5.4 4.5 6.5 L4.5 13.5 C4.5 14.6 5.4 15.5 6.5 15.5 L8.5 15.5"/></svg></button>
-          <button class="icon-btn" type="button" id="qr-key" aria-label="Получить QR-код ключа в чате"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="6" height="6" rx="1"/><rect x="13.5" y="4.5" width="6" height="6" rx="1"/><rect x="4.5" y="13.5" width="6" height="6" rx="1"/><path d="M13.5 13.5 L16 13.5 M19.5 13.5 L19.5 16 M13.5 16.5 L13.5 19.5 L16.5 19.5 M17 17 L19.5 19.5"/></svg></button>
+          <button class="icon-btn" type="button" id="qr-key" aria-label="Показать QR-код ключа"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4.5" y="4.5" width="6" height="6" rx="1"/><rect x="13.5" y="4.5" width="6" height="6" rx="1"/><rect x="4.5" y="13.5" width="6" height="6" rx="1"/><path d="M13.5 13.5 L16 13.5 M19.5 13.5 L19.5 16 M13.5 16.5 L13.5 19.5 L16.5 19.5 M17 17 L19.5 19.5"/></svg></button>
+        </div>
+        <div class="keyrow" id="xhttp-row" hidden style="border-top:1px solid var(--hair)">
+          <div class="meta">
+            <span class="mono" style="color:var(--muted)">VLESS · Reality · XHTTP</span>
+            <span style="font-size:15px;font-weight:500">Основной (Android, компьютер)</span>
+            <span class="masked" id="masked-x"></span>
+          </div>
+          <button class="icon-btn" type="button" id="copy-x" aria-label="Скопировать основной ключ"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5 L15.5 6.5 C15.5 5.4 14.6 4.5 13.5 4.5 L6.5 4.5 C5.4 4.5 4.5 5.4 4.5 6.5 L4.5 13.5 C4.5 14.6 5.4 15.5 6.5 15.5 L8.5 15.5"/></svg></button>
         </div>
       </div>
       <p class="fresh">Ключ только ваш: не пересылайте его, по нему считается ваш расход.</p>
@@ -340,7 +396,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
       <div class="lead rise">
         <div class="mono kicker">Помощь · если что-то не так</div>
         <h1 class="serif" style="font-size:32px">Если свет <em>мигает</em></h1>
-        <p style="font-size:15px">Частые случаи и что делать. Не помогло — напишите владельцу через бота.</p>
+        <p style="font-size:15px">Частые случаи и что делать. Не помогло — напишите владельцу.</p>
       </div>
       <div class="help rise" style="animation-delay:.1s">
         <details><summary>VPN включён, но ничего не открывается</summary><p>Удалите в приложении старые серверы и добавьте ключ заново (вкладка «Ключ»). Если не помогло, выключите и включите VPN.</p></details>
@@ -349,7 +405,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
         <details><summary>Маяк погас</summary><p>Свет гаснет, когда кончился срок, лимит трафика на месяц или ссылку поставили на паузу. Причина и кнопка, что делать, на главной вкладке.</p></details>
         <details><summary>Хочу ещё одно устройство</summary><p>Один и тот же ключ работает на телефоне и компьютере. Расход у них общий.</p></details>
       </div>
-      <div class="actions"><button class="btn soft" type="button" data-bot="help">Открыть бота<span class="arr">→</span></button></div>
+      <div class="actions"><button class="btn soft" type="button" id="open-bot">Открыть чат с ботом<span class="arr">→</span></button></div>
     </section>
 
     <!-- ============ Пульт (только у хозяина) ============ -->
@@ -368,15 +424,15 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
         <div class="row"><span class="mono">Свободных ссылок</span><span class="val" id="pult-free"></span></div>
       </div>
       <div class="actions rise" style="animation-delay:.12s" id="pult-requests" hidden>
-        <button class="btn primary" type="button" data-bot="admreq"><span id="pult-req-text">Заявки</span><span class="arr">→</span></button>
+        <button class="btn primary" type="button" data-act="requests"><span id="pult-req-text">Заявки</span><span class="arr">→</span></button>
       </div>
       <div class="grid rise" style="animation-delay:.16s">
-        <button type="button" data-bot="admnew"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 L12 19 M5 12 L19 12"/></svg>Выдать ссылку</button>
-        <button type="button" data-bot="admsay"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10 L4 14 L8 14 L15 18.5 L15 5.5 L8 10 Z"/><path d="M18 9.5 C19.3 10.8 19.3 13.2 18 14.5"/></svg>Рассылка</button>
-        <button type="button" data-bot="admsrv"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="6.5" rx="2"/><rect x="4" y="13.5" width="16" height="6.5" rx="2"/><path d="M7.5 7.25 L7.6 7.25 M7.5 16.75 L7.6 16.75"/></svg>Сервер</button>
-        <button type="button" data-bot="admpay"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12.5" rx="2.5"/><path d="M3 10.5 L21 10.5 M6.5 15 L10.5 15"/></svg>Оплата</button>
-        <button type="button" data-bot="admsites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12 C6 5.5 18 5.5 21.5 12 C18 18.5 6 18.5 2.5 12 Z"/><circle cx="12" cy="12" r="3"/></svg>Сайты</button>
-        <button type="button" data-bot="adm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7 L20 7 M4 12 L20 12 M4 17 L20 17"/><circle cx="9" cy="7" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="8" cy="17" r="2" fill="var(--card)"/></svg>Всё в боте</button>
+        <button type="button" data-act="issue"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5 L12 19 M5 12 L19 12"/></svg>Выдать ссылку</button>
+        <button type="button" data-act="say"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10 L4 14 L8 14 L15 18.5 L15 5.5 L8 10 Z"/><path d="M18 9.5 C19.3 10.8 19.3 13.2 18 14.5"/></svg>Рассылка</button>
+        <button type="button" data-act="server"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="6.5" rx="2"/><rect x="4" y="13.5" width="16" height="6.5" rx="2"/><path d="M7.5 7.25 L7.6 7.25 M7.5 16.75 L7.6 16.75"/></svg>Сервер</button>
+        <button type="button" data-act="pay"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12.5" rx="2.5"/><path d="M3 10.5 L21 10.5 M6.5 15 L10.5 15"/></svg>Оплата</button>
+        <button type="button" data-act="sites"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12 C6 5.5 18 5.5 21.5 12 C18 18.5 6 18.5 2.5 12 Z"/><circle cx="12" cy="12" r="3"/></svg>Сайты</button>
+        <button type="button" data-act="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7 L20 7 M4 12 L20 12 M4 17 L20 17"/><circle cx="9" cy="7" r="2" fill="var(--card)"/><circle cx="15" cy="12" r="2" fill="var(--card)"/><circle cx="8" cy="17" r="2" fill="var(--card)"/></svg>Настройки</button>
       </div>
       <div class="tools rise" style="animation-delay:.2s">
         <label class="mono" for="pult-search" style="color:var(--muted)">Люди</label>
@@ -389,6 +445,18 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
       </div>
       <div class="people rise" style="animation-delay:.24s" id="pult-people"></div>
       <p class="fresh" id="pult-fresh"></p>
+    </section>
+
+    <!-- ============ нет доступа ============ -->
+    <section id="tab-guest" aria-label="Нет доступа" hidden>
+      <div class="lead rise">
+        <div class="mono kicker">Гавань · вход по приглашению</div>
+        <h1 class="serif" style="font-size:32px">Маяк пока <em>не ваш</em></h1>
+        <p style="font-size:15px" id="guest-text"></p>
+      </div>
+      <div class="actions rise" style="animation-delay:.1s">
+        <button class="btn primary" type="button" id="guest-ask">Попросить доступ<span class="arr">→</span></button>
+      </div>
     </section>
 
     <!-- ============ без данных ============ -->
@@ -404,10 +472,20 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
       <button class="tab" type="button" data-tab="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21 L10.2 9 L13.8 9 L15 21 Z"/><path d="M8.5 9 L15.5 9"/><path d="M10 9 L10 6 L14 6 L14 9"/><path d="M12 6 L12 3.6"/></svg>Маяк<i class="dot"></i></button>
       <button class="tab" type="button" data-tab="key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3.6"/><path d="M11.6 12 L20.5 12 M17.5 12 L17.5 15 M20.5 12 L20.5 14.2"/></svg>Ключ<i class="dot"></i></button>
       <button class="tab" type="button" data-tab="pult" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7 L20 7 M4 12 L20 12 M4 17 L20 17"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg>Пульт<i class="dot"></i></button>
+      <button class="tab" type="button" data-tab="guest" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21 L10.2 9 L13.8 9 L15 21 Z"/><path d="M8.5 9 L15.5 9"/><path d="M10 9 L10 6 L14 6 L14 9"/><path d="M12 6 L12 3.6"/></svg>Доступ<i class="dot"></i></button>
       <button class="tab" type="button" data-tab="help"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6.5 C4.5 5.4 5.4 4.5 6.5 4.5 L17.5 4.5 C18.6 4.5 19.5 5.4 19.5 6.5 L19.5 14 C19.5 15.1 18.6 16 17.5 16 L11 16 L7 19.5 L7 16 L6.5 16 C5.4 16 4.5 15.1 4.5 14 Z"/><path d="M9 10.2 L15 10.2"/></svg>Помощь<i class="dot"></i></button>
     </div>
   </nav>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="sheet-back" id="sheet-back" hidden>
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="grab" aria-hidden="true"></div>
+      <button class="x" type="button" id="sheet-close" aria-label="Закрыть">✕</button>
+      <h2 class="serif" id="sheet-title"></h2>
+      <div id="sheet-body"></div>
+    </div>
+  </div>
+  <div class="busy" id="busy" hidden><div><span class="spin" aria-hidden="true"></span><span id="busy-text" role="status">Выполняю…</span></div></div>
 </div>
 
 <script>
@@ -415,6 +493,8 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
   "use strict";
   var MONTHS_NOM = ["январь", "февраль", "март", "апрель", "май", "июнь", "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"];
   var MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+  var QUOTAS = [10, 30, 50, 100, 200], TERMS = [7, 30, 90], AMOUNTS = [100, 150, 200, 300, 500], PAY_DAYS = [1, 5, 10, 15, 20, 25];
+  var PAY_MODES = { off: "Выключена", remind: "Напоминания", enforce: "Напоминания и отключение" };
   var $ = function (id) { return document.getElementById(id); };
   var app = $("app");
 
@@ -425,17 +505,23 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     var parts = raw.replace(/^#/, "").split(/[&?#]/);
     for (var i = 0; i < parts.length; i++) {
       if (parts[i].indexOf("d=") === 0) {
-        try {
-          var b64 = parts[i].slice(2).replace(/-/g, "+").replace(/_/g, "/");
-          while (b64.length % 4) b64 += "=";
-          var bin = atob(b64), bytes = new Uint8Array(bin.length);
-          for (var j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
-          return JSON.parse(new TextDecoder().decode(bytes));
-        } catch (e) { return null; }
+        try { return JSON.parse(new TextDecoder().decode(unb64u(parts[i].slice(2)))); } catch (e) { return null; }
       }
     }
     return null;
   }
+  function b64u(bytes) {
+    var bin = ""; for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function unb64u(text) {
+    var b64 = String(text || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    var bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (var j = 0; j < bin.length; j++) bytes[j] = bin.charCodeAt(j);
+    return bytes;
+  }
+  var enc = function (text) { return new TextEncoder().encode(text); };
 
   function tg() { return (window.Telegram && window.Telegram.WebApp) || null; }
 
@@ -457,12 +543,20 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     if (w && w.setHeaderColor) { try { w.setHeaderColor(night ? "#1A1918" : "#FAF9F5"); w.setBackgroundColor(night ? "#1A1918" : "#FAF9F5"); } catch (e) {} }
   }
 
-  function haptic() { var w = tg(); try { if (w && w.HapticFeedback) w.HapticFeedback.impactOccurred("light"); } catch (e) {} }
+  function haptic(kind) {
+    var w = tg();
+    try {
+      if (!w || !w.HapticFeedback) return;
+      if (kind === "ok" || kind === "error") w.HapticFeedback.notificationOccurred(kind === "ok" ? "success" : "error");
+      else w.HapticFeedback.impactOccurred("light");
+    } catch (e) {}
+  }
 
   var toastTimer = null;
   function toast(text) {
+    if (!text) return;
     var t = $("toast"); t.textContent = text; t.classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 3600);
+    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 4200);
   }
 
   function copy(text, done) {
@@ -472,17 +566,18 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
       document.body.appendChild(area); area.select();
       var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
       document.body.removeChild(area);
-      toast(ok ? done : "Не получилось скопировать. Возьмите ключ в боте: «Моя ссылка».");
+      toast(ok ? done : "Не получилось скопировать. Нажмите на текст и скопируйте вручную.");
     }
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast(done); }, fallback);
     else fallback();
   }
 
-  // ---- открыть нужную команду в боте (оплата, QR-код, профиль для Happ живут там)
   var D = readData();
+  // как связаться с ботом: адрес ящика, номер ящика и ключ шифрования человека. Они приходят только в адресе кнопки
+  var LINK = D ? { R: D.R, X: D.X, K: D.K, b: D.b } : {};
+
   function openBot(code) {
-    haptic();
-    var bot = D && D.b;
+    var bot = LINK.b;
     if (!bot) { toast("Откройте бота ZapretVPN в Телеграме."); return; }
     var url = "https://t.me/" + bot + (code ? "?start=" + code : "");
     var w = tg();
@@ -490,9 +585,221 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     window.location.href = url;
   }
 
+  // ---- связь с ботом через почтовый ящик. Команда шифруется ключом этого человека: ящик видит только набор букв.
+  // Телеграм подписывает данные окна (initData): по подписи бот проверяет, что окно открыл именно этот человек.
+  function canTalk() {
+    var w = tg();
+    return !!(LINK.R && LINK.K && LINK.X && window.crypto && crypto.subtle && w && w.initData);
+  }
+  var keyPromise = null;
+  function aesKey() {
+    if (!keyPromise) keyPromise = crypto.subtle.importKey("raw", unb64u(LINK.K), { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+    return keyPromise;
+  }
+  function randomHex(n) {
+    var bytes = crypto.getRandomValues(new Uint8Array(n)), out = "";
+    for (var i = 0; i < bytes.length; i++) out += ("0" + bytes[i].toString(16)).slice(-2);
+    return out;
+  }
+  // без ящика (или вне Телеграма) кнопки ведут в бота, как раньше
+  var DEEP = { more: "more", renew: "renew", paid: "pay", qr: "qr", ru: "ru", ruqr: "ru", days: "", notes: "", slot: "", access: "", ref: "" };
+  function fallback(cmd) {
+    if (cmd.a === "ref") return;
+    toast("Связи с ботом из окна нет: открываю бота.");
+    if (DEEP.hasOwnProperty(cmd.a)) openBot(DEEP[cmd.a]);
+    else openBot(cmd.s ? "admu_" + cmd.s : "adm");
+  }
+
+  var busyCount = 0;
+  function busy(on, text) {
+    busyCount = Math.max(0, busyCount + (on ? 1 : -1));
+    $("busy").hidden = busyCount === 0;
+    if (on) $("busy-text").textContent = text || "Выполняю…";
+  }
+
+  async function talk(cmd, opts) {
+    opts = opts || {};
+    if (!canTalk()) { fallback(cmd); return null; }
+    if (!opts.quiet) busy(true, opts.busy);
+    else $("fresh-state").textContent = "обновляю…";
+    try {
+      var id = randomHex(16), key = await aesKey(), iv = crypto.getRandomValues(new Uint8Array(12));
+      var body = Object.assign({ t: Math.floor(Date.now() / 1000), w: tg().initData }, cmd);
+      var sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv, additionalData: enc(id) }, key, enc(JSON.stringify(body)));
+      var sent = await fetch(LINK.R + "/send", { method: "POST", headers: { "Content-Type": "application/json" }, cache: "no-store",
+        body: JSON.stringify({ x: LINK.X, i: id, v: b64u(iv), c: b64u(new Uint8Array(sealed)) }) });
+      if (!sent.ok) throw new Error(sent.status === 429 ? "часто" : "ящик");
+      var until = Date.now() + (opts.long ? 150000 : 70000);
+      while (Date.now() < until) {
+        var got = await fetch(LINK.R + "/result?i=" + id, { cache: "no-store" });
+        if (got.status === 202) continue;
+        if (!got.ok) throw new Error("ящик");
+        var box = await got.json();
+        var plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64u(box.v), additionalData: enc(id + "r") }, key, unb64u(box.c));
+        return handle(JSON.parse(new TextDecoder().decode(plain)), cmd, opts);
+      }
+      throw new Error("долго");
+    } catch (e) {
+      haptic("error");
+      if (!opts.quiet) toast(e && e.message === "часто" ? "Слишком много нажатий. Подождите минуту." : e && e.message === "долго"
+        ? "Бот долго не отвечает. Попробуйте ещё раз через минуту." : "Нет связи с ботом. Проверьте интернет и попробуйте ещё раз.");
+      return null;
+    } finally {
+      if (!opts.quiet) busy(false); else $("fresh-state").textContent = "";
+    }
+  }
+
+  function handle(res, cmd, opts) {
+    if (res.d) { var keep = LINK; D = Object.assign({}, res.d, { R: keep.R, X: keep.X, K: keep.K }); renderAll(); }
+    if (res.ok === false) haptic("error"); else if (cmd.a !== "ref") haptic("ok");
+    if (res.qr || res.x || res.c || res.i) infoSheet(res, cmd);
+    else if (sheetRefresh) sheetRefresh();
+    if (res.m && !(opts && opts.quiet && res.ok !== false)) toast(res.m);
+    return res;
+  }
+
+  // ---- шторка снизу: карточки, выбор, подтверждения
+  var sheetRefresh = null;
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = text;
+    return n;
+  }
+  function btn(text, cls, fn) {
+    var b = el("button", "btn " + (cls || "primary")); b.type = "button";
+    b.appendChild(el("span", "", text)); var arr = el("span", "arr", "→"); arr.setAttribute("aria-hidden", "true"); b.appendChild(arr);
+    b.addEventListener("click", function () { haptic(); fn(); });
+    return b;
+  }
+  function item(list, text, right, fn, danger) {
+    var b = el("button", "li" + (danger ? " danger" : "")); b.type = "button";
+    b.appendChild(el("span", "", text));
+    if (right) b.appendChild(el("span", "r", right));
+    b.appendChild(el("span", "pa", "›"));
+    b.addEventListener("click", function () { haptic(); fn(); });
+    list.appendChild(b);
+    return b;
+  }
+  function pick(parent, options, current, onPick) {
+    var row = el("div", "pick"); row.setAttribute("role", "group");
+    options.forEach(function (o) {
+      var b = el("button", "", o[1]); b.type = "button";
+      b.setAttribute("aria-pressed", String(o[0]) === String(current) ? "true" : "false");
+      b.addEventListener("click", function () {
+        haptic();
+        row.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+        onPick(o[0]);
+      });
+      row.appendChild(b);
+    });
+    parent.appendChild(row);
+    return row;
+  }
+  function field(parent, label, value, opts) {
+    opts = opts || {};
+    var id = "f" + randomish();
+    var l = el("label", "mono lbl", label); l.setAttribute("for", id); parent.appendChild(l);
+    var f = el(opts.area ? "textarea" : "input", "field"); f.id = id;
+    if (!opts.area) f.type = "text";
+    if (opts.number) { f.inputMode = "numeric"; f.pattern = "[0-9]*"; }
+    if (opts.max) f.maxLength = opts.max;
+    if (opts.placeholder) f.placeholder = opts.placeholder;
+    f.value = value || "";
+    parent.appendChild(f);
+    return f;
+  }
+  var counter = 0;
+  function randomish() { counter += 1; return counter; }
+
+  function openSheet(title, build, refresh) {
+    $("sheet-title").textContent = title;
+    var body = $("sheet-body"); body.innerHTML = "";
+    build(body);
+    sheetRefresh = refresh || null;
+    var back = $("sheet-back");
+    if (back.hidden) {
+      back.hidden = false;
+      requestAnimationFrame(function () { back.classList.add("open"); });
+      var w = tg(); try { if (w && w.BackButton) { w.BackButton.show(); } } catch (e) {}
+    }
+    $("sheet").scrollTop = 0;
+  }
+  function closeSheet() {
+    var back = $("sheet-back");
+    if (back.hidden) return;
+    sheetRefresh = null;
+    back.classList.remove("open");
+    setTimeout(function () { back.hidden = true; }, 220);
+    var w = tg(); try { if (w && w.BackButton) w.BackButton.hide(); } catch (e) {}
+  }
+  $("sheet-close").addEventListener("click", closeSheet);
+  $("sheet-back").addEventListener("click", function (e) { if (e.target === $("sheet-back")) closeSheet(); });
+
+  function confirmAsk(title, text, yes, fn) {
+    openSheet(title, function (body) {
+      body.appendChild(el("p", "note", text));
+      body.appendChild(btn(yes, "primary", fn));
+      body.appendChild(btn("Отмена", "soft", closeSheet));
+    });
+  }
+
+  // ответ бота с текстом, ссылкой или QR-кодом
+  function infoSheet(res, cmd) {
+    openSheet(res.t || "Готово", function (body) {
+      if (res.m && (res.i || res.qr)) body.appendChild(el("p", "note", res.m));
+      if (res.qr) {
+        var img = el("img", "qr"); img.alt = "QR-код"; img.src = "data:image/png;base64," + res.qr;
+        body.appendChild(img);
+        body.appendChild(el("p", "note", "В приложении нажмите «+» и выберите сканирование QR-кода. Никому не показывайте этот код."));
+      }
+      if (res.x) body.appendChild(el("div", "pre", res.x));
+      if (res.c) {
+        body.appendChild(el("div", "code", res.c));
+        body.appendChild(btn("Скопировать", "primary", function () { copy(res.c, "Скопировано."); }));
+        if (cmd.a === "ru") body.appendChild(btn("QR-код профиля", "soft", function () { talk({ a: "ruqr" }); }));
+      }
+      if (res.i) {
+        body.appendChild(el("div", "code", res.i));
+        body.appendChild(btn("Скопировать приглашение", "primary", function () { copy(res.i, "Приглашение скопировано."); }));
+        body.appendChild(btn("Переслать в Телеграме", "soft", function () {
+          var url = "https://t.me/share/url?url=" + encodeURIComponent(res.i) + "&text=" + encodeURIComponent("Твой VPN: открой ссылку, бот даст ключ и кабинет.");
+          var w = tg(); try { if (w && w.openTelegramLink) { w.openTelegramLink(url); return; } } catch (e) {}
+          window.open(url, "_blank");
+        }));
+      }
+      if (cmd.a === "sites") {
+        var week = cmd.d === 7;
+        body.appendChild(btn(week ? "За сегодня" : "За 7 дней", "soft", function () { talk({ a: "sites", s: cmd.s || "", d: week ? 1 : 7 }); }));
+        if (!cmd.s) body.appendChild(btn("Напомнить про профиль РФ", "soft", function () { talk({ a: "ruremind" }); }));
+      }
+      body.appendChild(btn("Закрыть", "soft", closeSheet));
+    });
+  }
+
   function gb(mb) { return (mb / 1000).toFixed(1).replace(".", ","); }
   function size(mb) { return mb >= 1000 ? gb(mb) + " ГБ" : Math.round(mb) + " МБ"; }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function dayText(iso) { var d = new Date(iso + "T00:00:00"); return d.getDate() + " " + MONTHS_GEN[d.getMonth()]; }
+  function plural(n, one, few, many) {
+    var m10 = n % 10, m100 = n % 100;
+    if (m10 === 1 && m100 !== 11) return one;
+    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+    return many;
+  }
+  function stampText() {
+    var now = new Date(D.g ? D.g * 1000 : Date.now());
+    return "Данные на " + pad(now.getDate()) + "." + pad(now.getMonth() + 1) + ", " + pad(now.getHours()) + ":" + pad(now.getMinutes());
+  }
+  function freshLine(box) {
+    box.innerHTML = "";
+    box.appendChild(el("span", "", stampText() + " · "));
+    var r = el("button", "", "обновить"); r.type = "button";
+    r.addEventListener("click", function () { talk({ a: "ref" }, { busy: "Обновляю…" }); });
+    box.appendChild(r);
+  }
 
+  // ---- главная человека
   function renderHome() {
     var state = D.s || "on", now = new Date(D.g ? D.g * 1000 : Date.now());
     var month = now.getMonth(), next = (month + 1) % 12;
@@ -500,12 +807,8 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     app.classList.toggle("dark-lamp", state === "paused" || state === "expired" || state === "unpaid");
     $("who").textContent = D.n || "онлайн";
 
-    // сколько дней до конца срока
     var days = null, till = null;
-    if (D.e) {
-      till = new Date(D.e + "T23:59:59");
-      days = Math.max(0, Math.ceil((till - now) / 86400000));
-    }
+    if (D.e) { till = new Date(D.e + "T23:59:59"); days = Math.max(0, Math.ceil((till - now) / 86400000)); }
     var tillText = till ? till.getDate() + " " + MONTHS_GEN[till.getMonth()] : "";
     var ring, num, unit;
     if (state === "on") {
@@ -525,7 +828,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
               gb(used) + " из " + limit + " ГБ за " + MONTHS_NOM[month] + ". С 1 " + MONTHS_GEN[next] + " лимит обнулится — или попросите добавить."],
       expired: ["Срок вышел", 'Свет <em>погас</em>',
                 "Подписка закончилась" + (till ? " " + tillText : "") + ". Попросите продлить — маяк загорится сразу."],
-      paused: ["Пауза", 'Маяк <em>отдыхает</em>', "Ссылка на паузе. Напишите владельцу, когда VPN снова понадобится."],
+      paused: ["Пауза", 'Маяк <em>отдыхает</em>', "Ссылка на паузе. Попросите владельца включить, когда VPN снова понадобится."],
       unpaid: ["Оплата", 'Свет <em>погас</em>', "Оплата за " + MONTHS_NOM[month] + " не получена. Как только владелец отметит оплату, маяк загорится."]
     }[state] || ["Подписка", "Ваш маяк", ""];
     $("kicker").textContent = T[0]; $("headline").innerHTML = T[1]; $("sub").textContent = T[2];
@@ -537,43 +840,53 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     $("track-fill").style.width = pct + "%"; $("track-dot").style.left = pct + "%";
     $("track").hidden = !(limit > 0);
     $("today").textContent = size(D.t || 0);
-    $("fresh").innerHTML = "";
-    var stamp = document.createElement("span");
-    stamp.textContent = "Данные на " + pad(now.getDate()) + "." + pad(now.getMonth() + 1) + ", " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + " · ";
-    var refresh = document.createElement("button"); refresh.type = "button"; refresh.textContent = "обновить";
-    refresh.addEventListener("click", function () { openBot(""); });
-    $("fresh").appendChild(stamp); $("fresh").appendChild(refresh);
+    freshLine($("fresh"));
+    $("banner").hidden = !D.B; $("banner-text").textContent = D.B || "";
 
-    // кнопки: что сейчас важнее всего
+    var soon = till && days <= 7;
     var acts = {
-      on: [[till && days <= 7 ? "Попросить продлить" : "Подключить устройство", till && days <= 7 ? "bot:renew" : "tab:key", "primary"],
-           till && days <= 7 ? ["Подключить устройство", "tab:key", "soft"] : ["Попросить ещё трафика", "bot:more", "soft"]],
-      quota: [["Попросить ещё трафика", "bot:more", "primary"], ["Подключить устройство", "tab:key", "soft"]],
-      expired: [["Попросить продлить", "bot:renew", "primary"], ["Открыть бота", "bot:", "soft"]],
-      paused: [["Написать владельцу", "bot:renew", "primary"], ["Открыть бота", "bot:", "soft"]],
-      unpaid: [["Как оплатить", "bot:pay", "primary"], ["Открыть бота", "bot:", "soft"]]
+      on: [[soon ? "Попросить продлить" : "Подключить устройство", soon ? "renew" : "tab:key", "primary"],
+           soon ? ["Подключить устройство", "tab:key", "soft"] : (limit > 0 ? ["Попросить ещё трафика", "more", "soft"] : null)],
+      quota: [["Попросить ещё трафика", "more", "primary"], ["Подключить устройство", "tab:key", "soft"]],
+      expired: [["Попросить продлить", "renew", "primary"]],
+      paused: [["Попросить включить", "renew", "primary"]],
+      unpaid: [["Как оплатить", "pay", "primary"], ["Попросить включить", "renew", "soft"]]
     }[state] || [];
-    if (state === "on" && !(limit > 0) && !(till && days <= 7)) acts[1] = ["Открыть бота", "bot:", "soft"];
     var box = $("home-actions"); box.innerHTML = "";
     acts.forEach(function (a) {
-      var b = document.createElement("button"); b.type = "button"; b.className = "btn " + a[2];
-      var t = document.createElement("span"); t.textContent = a[0];
-      var arr = document.createElement("span"); arr.className = "arr"; arr.textContent = "→";
-      b.appendChild(t); b.appendChild(arr);
-      b.addEventListener("click", function () {
-        if (a[1].indexOf("tab:") === 0) showTab(a[1].slice(4)); else openBot(a[1].slice(4));
-      });
-      box.appendChild(b);
+      if (!a) return;
+      box.appendChild(btn(a[0], a[2], function () {
+        if (a[1].indexOf("tab:") === 0) showTab(a[1].slice(4));
+        else if (a[1] === "pay") paySheetMine();
+        else talk({ a: a[1] }, { busy: "Передаю владельцу…" });
+      }));
     });
+
+    var more = $("home-more"); more.innerHTML = "";
+    if (D.P) item(more, "Оплата", D.P.a ? "ждём оплату" : "", paySheetMine);
+    item(more, "Расход по дням", "", function () { talk({ a: "days" }); });
+    if (D.N !== undefined) item(more, "Уведомления в боте", D.N ? "вкл" : "выкл", function () { talk({ a: "notes" }); });
+    if (D.O && D.O.length > 1) item(more, "Другая моя ссылка", D.n || "", slotSheet);
   }
 
-  function plural(n, one, few, many) {
-    var m10 = n % 10, m100 = n % 100;
-    if (m10 === 1 && m100 !== 11) return one;
-    if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-    return many;
+  function paySheetMine() {
+    var P = D.P;
+    if (!P) { toast("Оплата сейчас не включена."); return; }
+    openSheet("Оплата VPN", function (body) {
+      body.appendChild(el("p", "note", P.t || "Тебе платить не нужно."));
+      if (P.a && P.w) { body.appendChild(el("span", "mono lbl", "Куда переводить")); body.appendChild(el("div", "pre", P.w)); }
+      if (P.a) body.appendChild(btn("Я оплатил", "primary", function () { talk({ a: "paid" }, { busy: "Передаю владельцу…" }); }));
+      body.appendChild(btn("Закрыть", "soft", closeSheet));
+    });
   }
-  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function slotSheet() {
+    openSheet("Какую ссылку показать?", function (body) {
+      var list = el("div", "list"); body.appendChild(list);
+      (D.O || []).forEach(function (o) {
+        item(list, o[1], o[0] === D.c ? "сейчас" : "", function () { closeSheet(); talk({ a: "slot", s: o[0] }, { busy: "Переключаю…" }); });
+      });
+    });
+  }
 
   // ---- вкладка «Ключ»
   var ROUTES = "Обязательно: профиль «Российские сайты — напрямую» (кнопка ниже). Без него банки, Госуслуги и маркетплейсы могут не открыться.";
@@ -605,8 +918,8 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
   function renderKey() {
     var seg = $("platforms"); seg.innerHTML = "";
     Object.keys(NAMES).forEach(function (key) {
-      var b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "tab");
-      b.setAttribute("aria-selected", key === platform ? "true" : "false"); b.textContent = NAMES[key];
+      var b = el("button", "", NAMES[key]); b.type = "button"; b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", key === platform ? "true" : "false");
       b.addEventListener("click", function () { platform = key; haptic(); renderKey(); });
       seg.appendChild(b);
     });
@@ -614,29 +927,36 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     $("app-label").textContent = a.label; $("app-count").textContent = a.count;
     var steps = $("steps"); steps.innerHTML = "";
     a.steps.forEach(function (text, i) {
-      var row = document.createElement("div"); row.className = "step" + (text === ROUTES ? " must" : "");
-      row.style.animationDelay = (i * 0.08) + "s";
-      var n = document.createElement("span"); n.className = "num"; n.textContent = i + 1;
-      var t = document.createElement("span"); t.className = "t"; t.textContent = text;
-      row.appendChild(n); row.appendChild(t); steps.appendChild(row);
+      var row = el("div", "step" + (text === ROUTES ? " must" : "")); row.style.animationDelay = (i * 0.08) + "s";
+      row.appendChild(el("span", "num", String(i + 1))); row.appendChild(el("span", "t", text)); steps.appendChild(row);
     });
     $("routing-text").textContent = platform === "windows"
-      ? "В Zapret Control+ российские сайты и так идут напрямую. В Happ для Windows добавьте профиль из бота."
+      ? "В Zapret Control+ российские сайты и так идут напрямую. В Happ для Windows добавьте профиль ниже."
       : "Без этого шага банки, Госуслуги и маркетплейсы могут не открыться через VPN. Добавьте один раз — Happ запомнит.";
     var k = D.k || "";
-    $("masked").textContent = k ? k.slice(0, 10) + "••••••••@••••" : "ключ в боте: «Моя ссылка»";
+    $("masked").textContent = k ? k.slice(0, 10) + "••••••••@••••" : "ключ появится после обновления";
+    $("xhttp-row").hidden = !D.x;
+    $("masked-x").textContent = D.x ? D.x.slice(0, 10) + "••••••••@••••" : "";
   }
 
   function copyKey() {
     haptic();
-    if (!D.k) { openBot("key"); return; }
+    if (!D.k) { talk({ a: "ref" }, { busy: "Обновляю…" }); return; }
     copy(D.k, "Ключ скопирован. Откройте Happ, нажмите «+» и выберите вставку из буфера.");
   }
 
+  // ---- нет доступа
+  function renderGuest() {
+    $("guest-text").textContent = D.q ? "Заявка у владельца. Бот напишет, как только он ответит."
+      : "Если владелец дал вам ссылку-приглашение, просто откройте её. Или отправьте заявку: владелец увидит её и решит.";
+    $("guest-ask").hidden = !!D.q;
+  }
+
   // ---- «Пульт» хозяина: строка на человека [слот, имя, состояние, МБ за месяц, лимит ГБ, мин назад в сети (-1: не был),
-  // срок, МБ за сегодня, 1 если кабинет в боте привязан]
+  // срок, МБ за сегодня, 1 если кабинет в боте привязан, 1 если ссылка из запаса]
   var pultFilter = "all";
   var STATE_SHORT = { paused: "пауза", expired: "срок вышел", quota: "лимит", unpaid: "не оплачено" };
+  var STATE_LONG = { on: "работает", paused: "на паузе", expired: "срок вышел", quota: "лимит кончился", unpaid: "не оплачено" };
   function seenText(min) {
     if (min < 0) return "не подключался";
     if (min < 3) return "в сети сейчас";
@@ -645,11 +965,12 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     return Math.floor(min / 1440) + " дн назад";
   }
   function renderPult() {
-    var A = D.a, people = A.p || [], now = new Date(D.g ? D.g * 1000 : Date.now());
+    var A = D.a, people = A.p || [];
     var online = people.filter(function (p) { return p[5] >= 0 && p[5] < 3; }).length;
     var off = people.filter(function (p) { return p[2] !== "on"; }).length;
     $("pult-sub").textContent = (A.v ? "VPN работает" : "VPN не работает: загляните в «Сервер»") + " · в сети " + online
       + " из " + people.length + (off ? " · отключены: " + off : "");
+    var now = new Date(D.g ? D.g * 1000 : Date.now());
     $("pult-month").textContent = "Сервер · " + MONTHS_NOM[now.getMonth()];
     var m = A.m || 0, L = A.L || 0;
     $("pult-traffic").innerHTML = L > 0 ? gb(m) + ' <span>из ' + L + ' ГБ</span>' : gb(m) + ' <span>ГБ</span>';
@@ -659,12 +980,7 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     $("pult-free").textContent = String(A.f || 0);
     $("pult-requests").hidden = !(A.r > 0);
     $("pult-req-text").textContent = "Заявки на доступ: " + (A.r || 0);
-    $("pult-fresh").innerHTML = "";
-    var stamp = document.createElement("span");
-    stamp.textContent = "Данные на " + pad(now.getDate()) + "." + pad(now.getMonth() + 1) + ", " + pad(now.getHours()) + ":" + pad(now.getMinutes()) + " · ";
-    var refresh = document.createElement("button"); refresh.type = "button"; refresh.textContent = "обновить";
-    refresh.addEventListener("click", function () { openBot("adm"); });
-    $("pult-fresh").appendChild(stamp); $("pult-fresh").appendChild(refresh);
+    freshLine($("pult-fresh"));
     drawPeople();
   }
   function drawPeople() {
@@ -677,24 +993,215 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     });
     list.sort(function (a, b) { return (b[3] || 0) - (a[3] || 0); });
     list.forEach(function (p) {
-      var b = document.createElement("button"); b.type = "button"; b.className = "person";
-      var dot = document.createElement("span"); dot.className = "pd" + (p[2] !== "on" ? " off" : (p[5] >= 0 && p[5] < 3 ? " on" : ""));
-      var meta = document.createElement("span"); meta.className = "pm";
-      var name = document.createElement("span"); name.className = "pn"; name.textContent = p[1];
-      var sub = document.createElement("span"); sub.className = "ps";
-      var parts = [gb(p[3] || 0) + (p[4] > 0 ? " из " + p[4] + " ГБ" : " ГБ"), seenText(p[5])];
-      if (p[6]) { var d = new Date(p[6] + "T00:00:00"); parts.push("до " + pad(d.getDate()) + "." + pad(d.getMonth() + 1)); }
-      if (!p[8]) parts.push("без кабинета");
-      sub.textContent = parts.join(" · ");
-      meta.appendChild(name); meta.appendChild(sub); b.appendChild(dot); b.appendChild(meta);
-      if (STATE_SHORT[p[2]]) { var st = document.createElement("span"); st.className = "mono pt"; st.textContent = STATE_SHORT[p[2]]; b.appendChild(st); }
-      var arr = document.createElement("span"); arr.className = "pa"; arr.textContent = "›"; arr.setAttribute("aria-hidden", "true"); b.appendChild(arr);
-      b.setAttribute("aria-label", p[1] + ": " + sub.textContent + (STATE_SHORT[p[2]] ? ", " + STATE_SHORT[p[2]] : "") + ". Открыть в боте");
-      b.addEventListener("click", function () { openBot("admu_" + p[0]); });
+      var b = el("button", "person"); b.type = "button";
+      b.appendChild(el("span", "pd" + (p[2] !== "on" ? " off" : (p[5] >= 0 && p[5] < 3 ? " on" : ""))));
+      var meta = el("span", "pm"); meta.appendChild(el("span", "pn", p[1]));
+      var sub = el("span", "ps", personLine(p)); meta.appendChild(sub); b.appendChild(meta);
+      if (STATE_SHORT[p[2]]) b.appendChild(el("span", "mono pt", STATE_SHORT[p[2]]));
+      var arr = el("span", "pa", "›"); arr.setAttribute("aria-hidden", "true"); b.appendChild(arr);
+      b.setAttribute("aria-label", p[1] + ": " + sub.textContent + (STATE_SHORT[p[2]] ? ", " + STATE_SHORT[p[2]] : ""));
+      b.addEventListener("click", function () { haptic(); personSheet(p[0]); });
       box.appendChild(b);
     });
-    if (!list.length) { var n = document.createElement("div"); n.className = "nobody"; n.textContent = "Никого не нашлось."; box.appendChild(n); }
+    if (!list.length) box.appendChild(el("div", "nobody", "Никого не нашлось."));
   }
+  function personLine(p) {
+    var parts = [gb(p[3] || 0) + (p[4] > 0 ? " из " + p[4] + " ГБ" : " ГБ"), seenText(p[5])];
+    if (p[6]) { var d = new Date(p[6] + "T00:00:00"); parts.push("до " + pad(d.getDate()) + "." + pad(d.getMonth() + 1)); }
+    if (!p[8]) parts.push("без кабинета");
+    return parts.join(" · ");
+  }
+  function row(slot) { return ((D.a && D.a.p) || []).filter(function (p) { return p[0] === slot; })[0] || null; }
+
+  function personSheet(slot) {
+    var p = row(slot);
+    if (!p) { closeSheet(); toast("Этой ссылки больше нет."); return; }
+    openSheet(p[1], function (body) {
+      var who = (D.a.o || {})[slot];
+      body.appendChild(el("p", "note", STATE_LONG[p[2]] ? "Сейчас: " + STATE_LONG[p[2]] + "." : ""));
+      body.appendChild(el("p", "note", personLine(p) + (p[7] ? " · сегодня " + size(p[7]) : "")
+        + (who ? ". Кабинет в боте: " + who : p[8] ? ". Кабинет в боте привязан" : ". Кабинет в боте не привязан: отправьте приглашение") + "."));
+      var list = el("div", "list"); body.appendChild(list);
+      item(list, "Лимит в месяц", p[4] > 0 ? p[4] + " ГБ" : "без лимита", function () { limitSheet(slot); });
+      item(list, "Срок", p[6] ? "до " + dayText(p[6]) : "без срока", function () { termSheet(slot); });
+      if (p[2] === "paused") item(list, "Включить", "", function () { talk({ a: "resume", s: slot }); });
+      else item(list, "Поставить на паузу", "", function () { talk({ a: "pause", s: slot }); });
+      item(list, "Обнулить расход", "", function () {
+        confirmAsk("Обнулить расход?", "Расход за месяц у «" + p[1] + "» начнётся с нуля, лимит снова целый.", "Обнулить", function () { talk({ a: "reset", s: slot }).then(function () { personSheet(slot); }); });
+      });
+      var list2 = el("div", "list"); body.appendChild(list2);
+      item(list2, "Приглашение в бот", "", function () { talk({ a: "invite", s: slot }); });
+      item(list2, "Показать ссылку", "", function () { talk({ a: "link", s: slot }); });
+      if (p[8]) item(list2, "Написать человеку", "", function () { textSheet("Сообщение для «" + p[1] + "»", "Текст", "", { area: true, max: 1500 }, "Отправить", function (v) { return talk({ a: "msg", s: slot, v: v }); }); });
+      item(list2, "Переименовать", "", function () { textSheet("Новое имя", "Имя", p[1], { max: 40 }, "Сохранить", function (v) { return talk({ a: "rename", s: slot, v: v }); }); });
+      item(list2, "Сайты", "", function () { talk({ a: "sites", s: slot, d: 1 }); });
+      var list3 = el("div", "list"); body.appendChild(list3);
+      item(list3, "Новая ссылка взамен", "", function () {
+        confirmAsk("Выдать новую ссылку?", "Старая сразу перестанет работать. VPN у всех моргнёт на пару секунд.", "Выдать новую", function () { talk({ a: "rekey", s: slot }).then(function () { personSheet(slot); }); });
+      }, true);
+      item(list3, p[9] ? "Отозвать ссылку" : "Отключить устройство", "", function () {
+        confirmAsk(p[9] ? "Отозвать ссылку?" : "Отключить устройство?", "Новые подключения по ней сразу перестанут проходить. VPN у остальных не моргнёт.",
+          p[9] ? "Отозвать" : "Отключить", function () { talk({ a: "revoke", s: slot }).then(function (res) { if (res && res.ok !== false) closeSheet(); }); });
+      }, true);
+    }, function () { personSheet(slot); });
+  }
+
+  function limitSheet(slot) {
+    var p = row(slot); if (!p) return;
+    var chosen = p[4];
+    openSheet("Лимит для «" + p[1] + "»", function (body) {
+      body.appendChild(el("p", "note", "Сколько гигабайт в месяц можно. Кончится лимит — VPN у человека отключится до начала следующего месяца."));
+      var f;
+      pick(body, QUOTAS.map(function (n) { return [n, n + " ГБ"]; }).concat([[0, "Без лимита"]]), chosen, function (v) { chosen = v; f.value = v ? String(v) : ""; });
+      f = field(body, "Или своё число", p[4] ? String(p[4]) : "", { number: true, max: 5, placeholder: "например 75" });
+      body.appendChild(btn("Сохранить", "primary", function () {
+        var n = f.value.trim() === "" ? 0 : parseInt(f.value, 10);
+        if (isNaN(n) || n < 0) { toast("Нужно целое число гигабайт."); return; }
+        talk({ a: "quota", s: slot, gb: n }).then(function (res) { if (res && res.ok !== false) personSheet(slot); });
+      }));
+    });
+  }
+  function termSheet(slot) {
+    var p = row(slot); if (!p) return;
+    openSheet("Срок для «" + p[1] + "»", function (body) {
+      body.appendChild(el("p", "note", "На сколько дней от сегодня оставить ссылку. Потом VPN у человека отключится сам."));
+      pick(body, TERMS.map(function (n) { return [n, n + " дней"]; }).concat([[0, "Без срока"]]), null, function (v) {
+        talk({ a: "expire", s: slot, d: v }).then(function (res) { if (res && res.ok !== false) personSheet(slot); });
+      });
+    });
+  }
+  function textSheet(title, label, value, opts, yes, fn) {
+    openSheet(title, function (body) {
+      var f = field(body, label, value, opts);
+      body.appendChild(btn(yes, "primary", function () {
+        if (!f.value.trim()) { toast("Пусто."); return; }
+        fn(f.value.trim()).then(function (res) { if (res && res.ok !== false && !res.x) closeSheet(); });
+      }));
+      setTimeout(function () { try { f.focus(); } catch (e) {} }, 300);
+    });
+  }
+
+  // выдать ссылку: новому человеку или по заявке
+  function issueSheet(req) {
+    var quota = 0, days = 0;
+    openSheet(req ? "Заявка: " + req[1] : "Выдать ссылку", function (body) {
+      if (req) body.appendChild(el("p", "note", "Человек сразу получит кабинет в боте" + (req[2] ? " (@" + req[2] + ")" : "") + "."));
+      else body.appendChild(el("p", "note", "Получится приглашение: перешлите его человеку, он откроет и получит ключ."));
+      var name = field(body, "Имя", req ? req[1] : "", { max: 40, placeholder: "Как зовут человека" });
+      body.appendChild(el("span", "mono lbl", "Лимит в месяц"));
+      pick(body, QUOTAS.map(function (n) { return [n, n + " ГБ"]; }).concat([[0, "Без лимита"]]), 0, function (v) { quota = v; });
+      body.appendChild(el("span", "mono lbl", "Срок"));
+      pick(body, TERMS.map(function (n) { return [n, n + " дней"]; }).concat([[0, "Без срока"]]), 0, function (v) { days = v; });
+      body.appendChild(btn(req ? "Выдать доступ" : "Выдать ссылку", "primary", function () {
+        if (!name.value.trim()) { toast("Напишите имя."); return; }
+        var cmd = { a: req ? "grant" : "issue", v: name.value.trim(), gb: quota, d: days };
+        if (req) cmd.u = req[0];
+        talk(cmd, { busy: "Выдаю…" }).then(function (res) { if (res && res.ok !== false && req) requestsSheet(); });
+      }));
+      if (req) body.appendChild(btn("Отклонить", "soft", function () { talk({ a: "deny", u: req[0] }).then(function () { requestsSheet(); }); }));
+    });
+  }
+  function requestsSheet() {
+    var reqs = (D.a && D.a.q) || [];
+    if (!reqs.length) { closeSheet(); toast("Заявок нет."); return; }
+    openSheet("Заявки на доступ", function (body) {
+      var list = el("div", "list"); body.appendChild(list);
+      reqs.forEach(function (r) { item(list, r[1] + (r[2] ? " @" + r[2] : ""), "", function () { issueSheet(r); }); });
+    });
+  }
+
+  function saySheet() {
+    talk({ a: "tpl" }, { busy: "Открываю…" }).then(function (res) {
+      if (!res || !res.T) return;
+      openSheet("Рассылка", function (body) {
+        body.appendChild(el("p", "note", "Сообщение получат все, кто привязал кабинет в боте (" + (res.A || 0) + ")."));
+        var text;
+        body.appendChild(el("span", "mono lbl", "Готовые тексты"));
+        pick(body, res.T.map(function (t) { return [t[0], t[1]]; }), null, function (key) {
+          var t = res.T.filter(function (x) { return x[0] === key; })[0]; if (t) text.value = t[2];
+        });
+        text = field(body, "Текст", "", { area: true, max: 1500, placeholder: "Или напишите свой" });
+        body.appendChild(btn("Отправить всем", "primary", function () {
+          var v = text.value.trim(); if (!v) { toast("Пустой текст."); return; }
+          confirmAsk("Отправить всем (" + (res.A || 0) + ")?", v, "Отправить", function () { talk({ a: "say", v: v }, { busy: "Рассылаю…" }).then(function (r) { if (r) closeSheet(); }); });
+        }));
+        var banner = field(body, "Объявление вверху кабинета", D.B || "", { max: 300, placeholder: "Например: до 18:00 идут работы" });
+        body.appendChild(btn("Повесить объявление", "soft", function () { talk({ a: "banner", v: banner.value.trim() }); }));
+        if (D.B) body.appendChild(btn("Убрать объявление", "soft", function () { talk({ a: "banner", v: "" }); }));
+      });
+    });
+  }
+
+  function uptime(sec) {
+    var d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600);
+    return d ? d + " " + plural(d, "день", "дня", "дней") + " " + h + " ч" : h + " ч";
+  }
+  function serverSheet() {
+    var S = (D.a && D.a.S) || null;
+    openSheet("Сервер", function (body) {
+      if (S) {
+        var mark = function (s) { return s === "active" ? "работает" : s === "disabled" ? "выключен" : (s || "?"); };
+        var info = el("div", "list"); body.appendChild(info);
+        [["Xray " + (S.xv || ""), mark(S.x)], ["Hysteria2 " + (S.hv || ""), mark(S.h)], ["Без перезагрузки", uptime(S.up || 0)],
+         ["Нагрузка", [S.cpu != null ? "процессор " + S.cpu + "%" : "", S.mem != null ? "память " + S.mem + "%" : "", S.disk != null ? "диск " + S.disk + "%" : ""].filter(Boolean).join(", ")],
+         ["Блокировка рекламы", S.ads ? "включена" : "выключена"], ["Свободных ссылок", String(D.a.f || 0)], ["Маскировка", S.sni || ""]]
+          .forEach(function (r) { var d = el("div", "li static"); d.appendChild(el("span", "", r[0])); d.appendChild(el("span", "r", r[1])); info.appendChild(d); });
+        if (!S.lt) body.appendChild(el("p", "note", "Учёт трафика остановлен: лимиты сейчас не действуют. Перезапустите VPN."));
+      }
+      var list = el("div", "list"); body.appendChild(list);
+      item(list, "Проверить сервер", "до 20 сек", function () { talk({ a: "check" }, { busy: "Проверяю сервер…", long: true }); });
+      item(list, "События", "", function () { talk({ a: "events" }); });
+      item(list, "Трафик по дням", "", function () { talk({ a: "tdays" }); });
+      item(list, "Ещё 10 свободных ссылок", "", function () {
+        confirmAsk("Заготовить ещё 10 ссылок?", "VPN при этом не моргнёт.", "Заготовить", function () { talk({ a: "pool" }).then(serverSheet); });
+      });
+      item(list, S && S.ads ? "Выключить блокировку рекламы" : "Включить блокировку рекламы", "", function () {
+        confirmAsk("Блокировка рекламы", (S && S.ads ? "Выключить блокировку рекламы?" : "Включить блокировку рекламных и следящих адресов для всех? Рекламу внутри роликов YouTube она не уберёт.")
+          + " VPN у всех моргнёт на пару секунд.", S && S.ads ? "Выключить" : "Включить", function () { talk({ a: "adblock" }, { busy: "Меняю…", long: true }).then(serverSheet); });
+      });
+      var danger = el("div", "list"); body.appendChild(danger);
+      item(danger, "Перезапустить VPN", "", function () {
+        confirmAsk("Перезапустить VPN?", "У всех он моргнёт на пару секунд.", "Перезапустить", function () { talk({ a: "restart" }, { busy: "Перезапускаю…", long: true }).then(serverSheet); });
+      }, true);
+      item(danger, "Перезагрузить сервер", "", function () {
+        confirmAsk("Перезагрузить сервер?", "VPN у всех пропадёт на минуту-две и вернётся сам. Бот тоже ненадолго замолчит.", "Перезагрузить", function () { talk({ a: "reboot" }).then(closeSheet); });
+      }, true);
+    });
+  }
+
+  function paySheet() {
+    var Y = D.a && D.a.y;
+    if (!Y) { openSheet("Оплата", function (body) { body.appendChild(el("p", "note", "Оплата появится после обновления скрипта на сервере.")); }); return; }
+    openSheet("Оплата (бета)", function (body) {
+      body.appendChild(el("p", "note", Y.amount + " ₽ в месяц, платить до " + Y.day + " числа. Собрано " + Y.got + " из " + Y.want + " ₽."));
+      body.appendChild(el("span", "mono lbl", "Режим"));
+      pick(body, Object.keys(PAY_MODES).map(function (k) { return [k, PAY_MODES[k]]; }), Y.mode, function (v) {
+        if (v === "enforce") confirmAsk("Включить отключение за неуплату?", "Кто не оплатил в срок, у того VPN отключится, пока не отметите оплату.", "Включить", function () { talk({ a: "pmode", v: v }).then(paySheet); });
+        else talk({ a: "pmode", v: v });
+      });
+      body.appendChild(el("span", "mono lbl", "Сумма в месяц"));
+      pick(body, AMOUNTS.map(function (n) { return [n, n + " ₽"]; }), Y.amount, function (v) { talk({ a: "pamount", n: v }); });
+      body.appendChild(el("span", "mono lbl", "Платить до"));
+      pick(body, PAY_DAYS.map(function (n) { return [n, n + " числа"]; }), Y.day, function (v) { talk({ a: "pday", n: v }); });
+      body.appendChild(el("span", "mono lbl", "Кто оплатил · нажмите, чтобы отметить"));
+      var list = el("div", "list"); body.appendChild(list);
+      var marks = { paid: "✅ оплачено", free: "не платит", "new": "новичок", wait: "ждём", grace: "срок прошёл", late: "просрочено" };
+      (Y.p || []).forEach(function (r) { item(list, r[1] + " · " + r[3] + " ₽", marks[r[2]] || r[2], function () { talk({ a: "pmark", s: r[0] }); }); });
+      if (!(Y.p || []).length) body.appendChild(el("p", "note", "Людей с выданными ссылками пока нет."));
+    }, paySheet);
+  }
+
+  function settingsSheet() {
+    openSheet("Настройки", function (body) {
+      var list = el("div", "list"); body.appendChild(list);
+      item(list, "Уведомления мне", D.a.n ? "вкл" : "выкл", function () { talk({ a: "anotes" }); });
+      body.appendChild(el("p", "note", "Уведомления: у человека кончился лимит, вышел срок, упала служба, пришла заявка."));
+    }, settingsSheet);
+  }
+
+  var ACTS = { requests: requestsSheet, issue: function () { issueSheet(null); }, say: saySheet, server: serverSheet, pay: paySheet,
+    sites: function () { talk({ a: "sites", d: 1 }); }, settings: settingsSheet };
+
   $("pult-search").addEventListener("input", function () { if (D && D.a) drawPeople(); });
   document.querySelectorAll(".chips button").forEach(function (c) {
     c.addEventListener("click", function () {
@@ -705,12 +1212,34 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
   });
 
   // ---- вкладки
+  var TABS = ["home", "key", "help", "pult", "guest"];
+  var current = "home";
   function showTab(name) {
-    ["home", "key", "help", "pult"].forEach(function (t) { $("tab-" + t).hidden = t !== name; });
+    current = name;
+    TABS.forEach(function (t) { $("tab-" + t).hidden = t !== name; });
     document.querySelectorAll(".tab").forEach(function (b) {
       if (b.dataset.tab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
     });
     window.scrollTo(0, 0);
+  }
+
+  function renderAll() {
+    var personal = !!D && D.s !== undefined, admin = !!D && !!D.a, guest = !!D && !!D.z;
+    if (!personal && !admin && !guest) {
+      TABS.forEach(function (t) { $("tab-" + t).hidden = true; });
+      $("tab-empty").hidden = false; $("tabs").hidden = true; return;
+    }
+    $("tab-empty").hidden = true; $("tabs").hidden = false;
+    if (personal) { renderHome(); renderKey(); }
+    if (admin) renderPult();
+    if (guest) renderGuest();
+    document.querySelector('.tab[data-tab="home"]').hidden = !personal;
+    document.querySelector('.tab[data-tab="key"]').hidden = !personal;
+    document.querySelector('.tab[data-tab="pult"]').hidden = !admin;
+    document.querySelector('.tab[data-tab="guest"]').hidden = !guest || personal;
+    if (!personal) $("who").textContent = admin ? "смотритель" : "гость";
+    var allowed = { home: personal, key: personal, pult: admin, guest: guest && !personal, help: true };
+    if (!allowed[current]) showTab(personal ? "home" : admin ? "pult" : "guest");
   }
 
   var tgReady = false;
@@ -718,35 +1247,25 @@ nav.tabs .in{display:flex;width:100%;max-width:480px}
     var w = tg();
     if (!w || tgReady) return;
     tgReady = true;
-    try { w.ready(); w.expand(); w.onEvent("themeChanged", applyTheme); } catch (e) {}
+    try { w.ready(); w.expand(); w.onEvent("themeChanged", applyTheme); if (w.BackButton) w.BackButton.onClick(closeSheet); } catch (e) {}
     applyTheme();
+    if (D && canTalk()) talk({ a: "ref" }, { quiet: true });   // в адресе кнопки данные на момент её отправки: просим свежие
   }
 
   function start() {
     applyTheme();
-    hookTelegram();
-    var personal = !!D && D.s !== undefined, admin = !!D && !!D.a;
-    if (!personal && !admin) {
-      ["home", "key", "help", "pult"].forEach(function (t) { $("tab-" + t).hidden = true; });
-      $("tab-empty").hidden = false; $("tabs").hidden = true; return;
-    }
-    if (personal) { renderHome(); renderKey(); }
-    if (admin) {
-      renderPult();
-      document.querySelector('.tab[data-tab="pult"]').hidden = false;
-    }
-    if (!personal) {   // у хозяина своего кабинета нет: сразу пульт
-      document.querySelector('.tab[data-tab="home"]').hidden = true;
-      document.querySelector('.tab[data-tab="key"]').hidden = true;
-      $("who").textContent = "смотритель";
-      showTab("pult");
-    }
-    document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("click", function () { haptic(); showTab(b.dataset.tab); }); });
+    renderAll();
+    if (!D) return;
+    document.querySelectorAll(".tab").forEach(function (b) { b.addEventListener("click", function () { haptic(); closeSheet(); showTab(b.dataset.tab); }); });
     $("add-key").addEventListener("click", copyKey);
     $("copy-key").addEventListener("click", copyKey);
-    $("qr-key").addEventListener("click", function () { openBot("qr"); });
-    $("routing-btn").addEventListener("click", function () { openBot("ru"); });
-    document.querySelectorAll("[data-bot]").forEach(function (b) { b.addEventListener("click", function () { openBot(b.dataset.bot); }); });
+    $("copy-x").addEventListener("click", function () { haptic(); if (D.x) copy(D.x, "Основной ключ скопирован."); });
+    $("qr-key").addEventListener("click", function () { talk({ a: "qr" }); });
+    $("routing-btn").addEventListener("click", function () { talk({ a: "ru" }); });
+    $("guest-ask").addEventListener("click", function () { talk({ a: "access" }, { busy: "Отправляю заявку…" }); });
+    $("open-bot").addEventListener("click", function () { openBot(""); });
+    document.querySelectorAll("[data-act]").forEach(function (b) { b.addEventListener("click", function () { haptic(); ACTS[b.dataset.act](); }); });
+    hookTelegram();
   }
 
   // скрипт стоит в конце страницы: всё нужное уже есть, ждать загрузки шрифтов и Телеграма не нужно
