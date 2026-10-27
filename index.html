@@ -1181,6 +1181,10 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       item(list, "Ещё 10 свободных ссылок", "", function () {
         confirmAsk("Заготовить ещё 10 ссылок?", "VPN при этом не моргнёт.", "Заготовить", function () { talk({ a: "pool" }).then(serverSheet); });
       });
+      if (D.a.rn) item(list, "Финский сервер оплачен до", dayText(D.a.rn), function () {
+        confirmAsk("Продлил финский сервер?", "Нажми, только если уже оплатил ещё месяц в FirstByte. Бот перенесёт напоминание на месяц вперёд.",
+          "Да, продлил на месяц", function () { talk({ a: "renewed" }).then(serverSheet); });
+      });
       item(list, S && S.ads ? "Выключить блокировку рекламы" : "Включить блокировку рекламы", "", function () {
         confirmAsk("Блокировка рекламы", (S && S.ads ? "Выключить блокировку рекламы?" : "Включить блокировку рекламных и следящих адресов для всех? Рекламу внутри роликов YouTube она не уберёт.")
           + " VPN у всех моргнёт на пару секунд.", S && S.ads ? "Выключить" : "Включить", function () { talk({ a: "adblock" }, { busy: "Меняю…", long: true }).then(serverSheet); });
