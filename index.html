@@ -1061,6 +1061,9 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       if (p[8]) item(list2, "Написать человеку", "", function () { textSheet("Сообщение для «" + p[1] + "»", "Текст", "", { area: true, max: 1500 }, "Отправить", function (v) { return talk({ a: "msg", s: slot, v: v }); }); });
       item(list2, "Переименовать", "", function () { textSheet("Новое имя", "Имя", p[1], { max: 40 }, "Сохранить", function (v) { return talk({ a: "rename", s: slot, v: v }); }); });
       item(list2, "Сайты", "", function () { talk({ a: "sites", s: slot, d: 1 }); });
+      if (p[10] === 0 || p[10] === 1) item(list2, "Antigravity", p[10] ? "включён" : "выключен", function () {
+        talk({ a: "egress", s: slot, on: p[10] ? 0 : 1 }).then(function () { personSheet(slot); });
+      });
       var list3 = el("div", "list"); body.appendChild(list3);
       item(list3, "Новая ссылка взамен", "", function () {
         confirmAsk("Выдать новую ссылку?", "Старая сразу перестанет работать. VPN у всех моргнёт на пару секунд.", "Выдать новую", function () { talk({ a: "rekey", s: slot }).then(function () { personSheet(slot); }); });
@@ -1181,6 +1184,14 @@ textarea.field{min-height:120px;resize:vertical;line-height:1.45}
       item(list, "Ещё 10 свободных ссылок", "", function () {
         confirmAsk("Заготовить ещё 10 ссылок?", "VPN при этом не моргнёт.", "Заготовить", function () { talk({ a: "pool" }).then(serverSheet); });
       });
+      var E = D.a.E;
+      if (E) {
+        var eState = E.fallback ? "сломан: Google временно через Ригу" : (E.active ? "Google видит " + (E.country || "?") : "туннель не отвечает");
+        item(list, "Второй выход (Gemini, Antigravity)", eState, function () {
+          confirmAsk("Починить второй выход?", "Перезапущу туннель до финского сервера и проверю, какую страну видит Google. VPN у людей не моргнёт.",
+            "Починить", function () { talk({ a: "erepair" }, { busy: "Чиню второй выход…", long: true }).then(serverSheet); });
+        });
+      }
       if (D.a.rn) item(list, "Финский сервер оплачен до", dayText(D.a.rn), function () {
         confirmAsk("Продлил финский сервер?", "Нажми, только если уже оплатил ещё месяц в FirstByte. Бот перенесёт напоминание на месяц вперёд.",
           "Да, продлил на месяц", function () { talk({ a: "renewed" }).then(serverSheet); });
